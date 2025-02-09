@@ -8,6 +8,10 @@ document.body.appendChild(renderer.domElement);
 
 // Add AR Button
 document.body.appendChild(THREE.ARButton.createButton(renderer));
+import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128/examples/jsm/webxr/ARButton.js';
+
+document.body.appendChild(ARButton.createButton(renderer));
+
 
 // Load 3D Car Model
 const loader = new THREE.GLTFLoader();
