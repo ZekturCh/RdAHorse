@@ -11,7 +11,7 @@ document.body.appendChild(THREE.ARButton.createButton(renderer));
 
 // Load 3D Car Model
 const loader = new THREE.GLTFLoader();
-loader.load('assets/car_model.glb', function (gltf) {
+loader.load('./assets/car_model.glb', function (gltf) {
     const car = gltf.scene;
     car.scale.set(1, 1, 1); // Adjust size
     car.position.set(0, 0, -2); // Place in front
