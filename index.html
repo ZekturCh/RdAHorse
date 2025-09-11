@@ -1,15 +1,175 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebXR con Three.js</title>
-    <script type="module" src="script.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Caballo AR para Evento</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+        }
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            z-index: 100;
+            border-radius: 10px;
+            margin: 0 20px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #fdbb2d;
+        }
+        .marker-link {
+            display: block;
+            margin-top: 15px;
+            color: #4fc3f7;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        #loadingBar {
+            width: 80%;
+            max-width: 300px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        #progress {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.5s;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
+    <div class="arjs-loader">
+        <h2>Caballo AR para Evento</h2>
+        <p>Coloca el marcador cerca de la bailarina y apunta con tu cámara</p>
+        <p>El caballo aparecerá a aproximadamente 0.5m del marcador</p>
+        <a href="https://arjs-cors-proxy.herokuapp.com/https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
+           target="_blank" class="marker-link">
+           📱 Descargar marcador para imprimir
+        </a>
+        <div id="loadingBar">
+            <div id="progress"></div>
+        </div>
+    </div>
+
+    <div class="instructions" style="display: none;">
+        <h3>¡Caballo AR Activado!</h3>
+        <p>Mantén el marcador estable para una mejor experiencia</p>
+    </div>
+
+    <a-scene
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; precision: medium;"
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+    >
+        <!-- Marcador Hiro -->
+        <a-marker 
+            type="pattern" 
+            preset="hiro"
+            emitevents="true"
+            smooth="true"
+            smoothCount="10"
+            smoothTolerance="0.01"
+            smoothThreshold="5"
+        >
+            <!-- Caballo posicionado a 0.5m del marcador -->
+            <a-entity
+                id="caballo"
+                gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Horse/glTF-Binary/Horse.glb"
+                scale="0.3 0.3 0.3"
+                position="0.5 0 0"
+                rotation="0 -90 0"
+                animation-mixer="clip: Walk; loop: once; timeScale: 0.8"
+                visible="true"
+            >
+            </a-entity>
+        </a-marker>
+        
+        <!-- Cámara -->
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const scene = document.querySelector('a-scene');
+            const loader = document.querySelector('.arjs-loader');
+            const instructions = document.querySelector('.instructions');
+            const progressBar = document.getElementById('progress');
+            const caballo = document.getElementById('caballo');
+            
+            // Simular progreso de carga
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                progressBar.style.width = Math.min(progress, 100) + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                        instructions.style.display = 'block';
+                    }, 500);
+                }
+            }, 200);
+            
+            // Configurar la animación para que se reproduzca una vez y desaparezca
+            scene.addEventListener('loaded', function() {
+                // Cuando se detecta el marcador
+                scene.addEventListener('markerFound', function(evt) {
+                    console.log("Marcador encontrado");
+                    
+                    // Reproducir animación una vez
+                    caballo.setAttribute('animation-mixer', 'clip: Walk; loop: once; timeScale: 0.8');
+                    
+                    // Ocultar el caballo después de que termine la animación (aproximadamente 5 segundos)
+                    setTimeout(() => {
+                        caballo.setAttribute('visible', 'false');
+                    }, 5000);
+                });
+                
+                // Cuando se pierde el marcador, resetear para la próxima vez
+                scene.addEventListener('markerLost', function(evt) {
+                    caballo.setAttribute('visible', 'true');
+                });
+            });
+        });
+    </script>
 </body>
 </html>
