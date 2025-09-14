@@ -1,175 +1,330 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <title>Caballo AR para Evento</title>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caballo en Realidad Aumentada</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-sizing: border-box;
         }
-        .arjs-loader {
-            height: 100%;
-            width: 100%;
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #info-panel {
             position: absolute;
             top: 0;
             left: 0;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
+            width: 100%;
+            padding: 20px;
             text-align: center;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            backdrop-filter: blur(5px);
         }
-        .instructions {
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        p {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        #start-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #start-button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #ar-overlay {
+            display: none;
             position: absolute;
             bottom: 20px;
-            left: 0;
-            right: 0;
+            left: 50%;
+            transform: translateX(-50%);
             text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.6);
             padding: 15px;
-            z-index: 100;
             border-radius: 10px;
-            margin: 0 20px;
             backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .instructions h3 {
-            margin-top: 0;
-            color: #fdbb2d;
+        
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            outline: none;
         }
-        .marker-link {
-            display: block;
-            margin-top: 15px;
-            color: #4fc3f7;
-            text-decoration: none;
-            font-weight: bold;
+        
+        .hint {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 15px;
+            border-radius: 8px;
+            animation: pulse 2s infinite;
         }
-        #loadingBar {
-            width: 80%;
-            max-width: 300px;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            margin-top: 20px;
-            overflow: hidden;
-        }
-        #progress {
-            height: 100%;
-            background: linear-gradient(to right, #4CAF50, #8BC34A);
-            width: 0%;
-            transition: width 0.5s;
-            border-radius: 10px;
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
         }
     </style>
 </head>
 <body>
-    <div class="arjs-loader">
-        <h2>Caballo AR para Evento</h2>
-        <p>Coloca el marcador cerca de la bailarina y apunta con tu cámara</p>
-        <p>El caballo aparecerá a aproximadamente 0.5m del marcador</p>
-        <a href="https://arjs-cors-proxy.herokuapp.com/https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
-           target="_blank" class="marker-link">
-           📱 Descargar marcador para imprimir
-        </a>
-        <div id="loadingBar">
-            <div id="progress"></div>
-        </div>
+    <div id="info-panel">
+        <h1>Caballo en Realidad Aumentada</h1>
+        <p>Usa la cámara de tu dispositivo para colocar un caballo animado CGI en tu entorno real. Para comenzar, presiona el botón "Iniciar AR" y luego toca cualquier superficie para colocar el modelo.</p>
+        <button id="start-button">Iniciar AR</button>
     </div>
-
-    <div class="instructions" style="display: none;">
-        <h3>¡Caballo AR Activado!</h3>
-        <p>Mantén el marcador estable para una mejor experiencia</p>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Cargando modelo 3D y preparando AR...</p>
     </div>
-
-    <a-scene
-        vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; precision: medium;"
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-    >
-        <!-- Marcador Hiro -->
-        <a-marker 
-            type="pattern" 
-            preset="hiro"
-            emitevents="true"
-            smooth="true"
-            smoothCount="10"
-            smoothTolerance="0.01"
-            smoothThreshold="5"
-        >
-            <!-- Caballo posicionado a 0.5m del marcador -->
-            <a-entity
-                id="caballo"
-                gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Horse/glTF-Binary/Horse.glb"
-                scale="0.3 0.3 0.3"
-                position="0.5 0 0"
-                rotation="0 -90 0"
-                animation-mixer="clip: Walk; loop: once; timeScale: 0.8"
-                visible="true"
-            >
-            </a-entity>
-        </a-marker>
-        
-        <!-- Cámara -->
-        <a-entity camera></a-entity>
-    </a-scene>
+    
+    <div id="ar-overlay">
+        <p>Mueve tu dispositivo para detectar superficies y toca para colocar el caballo</p>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/XRControllerModelFactory.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/webxr/ARButton.js"></script>
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            const scene = document.querySelector('a-scene');
-            const loader = document.querySelector('.arjs-loader');
-            const instructions = document.querySelector('.instructions');
-            const progressBar = document.getElementById('progress');
-            const caballo = document.getElementById('caballo');
+        // Variables globales
+        let camera, scene, renderer;
+        let controller, reticle;
+        let horseModel, mixer;
+        let hitTestSource = null;
+        let localSpace = null;
+        let arSession = false;
+
+        // Inicializar la aplicación
+        init();
+        animate();
+
+        function init() {
+            // Crear escena
+            scene = new THREE.Scene();
             
-            // Simular progreso de carga
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 15;
-                progressBar.style.width = Math.min(progress, 100) + '%';
-                
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        loader.style.display = 'none';
-                        instructions.style.display = 'block';
-                    }, 500);
+            // Crear cámara
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            
+            // Crear renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // Configurar iluminación
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+            
+            // Crear retículo (indicador de superficie)
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.05, 0.1, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            reticle.visible = false;
+            reticle.matrixAutoUpdate = false;
+            scene.add(reticle);
+            
+            // Cargar el modelo 3D
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                'HorseR.glb',
+                function (gltf) {
+                    horseModel = gltf.scene;
+                    horseModel.visible = false;
+                    
+                    // Configurar animaciones
+                    if (gltf.animations && gltf.animations.length) {
+                        mixer = new THREE.AnimationMixer(horseModel);
+                        gltf.animations.forEach((clip) => {
+                            mixer.clipAction(clip).play();
+                        });
+                    }
+                    
+                    scene.add(horseModel);
+                    
+                    // Ocultar loading
+                    document.getElementById('loading').style.display = 'none';
+                },
+                function (xhr) {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                },
+                function (error) {
+                    console.error('Error loading model:', error);
+                    document.getElementById('loading').querySelector('p').textContent = 
+                        'Error cargando el modelo. Verifica la consola para más detalles.';
                 }
-            }, 200);
+            );
             
-            // Configurar la animación para que se reproduzca una vez y desaparezca
-            scene.addEventListener('loaded', function() {
-                // Cuando se detecta el marcador
-                scene.addEventListener('markerFound', function(evt) {
-                    console.log("Marcador encontrado");
-                    
-                    // Reproducir animación una vez
-                    caballo.setAttribute('animation-mixer', 'clip: Walk; loop: once; timeScale: 0.8');
-                    
-                    // Ocultar el caballo después de que termine la animación (aproximadamente 5 segundos)
-                    setTimeout(() => {
-                        caballo.setAttribute('visible', 'false');
-                    }, 5000);
-                });
+            // Configurar controlador WebXR
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onSelect);
+            scene.add(controller);
+            
+            // Configurar botón AR
+            document.getElementById('start-button').addEventListener('click', function() {
+                this.style.display = 'none';
+                document.getElementById('info-panel').style.display = 'none';
+                document.getElementById('ar-overlay').style.display = 'block';
                 
-                // Cuando se pierde el marcador, resetear para la próxima vez
-                scene.addEventListener('markerLost', function(evt) {
-                    caballo.setAttribute('visible', 'true');
+                // Iniciar sesión AR
+                renderer.xr.setReferenceSpaceType('local');
+                const sessionInit = { optionalFeatures: ['hit-test'] };
+                
+                navigator.xr.requestSession('immersive-ar', sessionInit).then(function(session) {
+                    arSession = true;
+                    session.addEventListener('end', onSessionEnd);
+                    
+                    // Configurar espacio local
+                    session.requestReferenceSpace('local').then(function(space) {
+                        localSpace = space;
+                        session.requestHitTestSource({ space: localSpace }).then(function(source) {
+                            hitTestSource = source;
+                        });
+                    });
+                    
+                    // Configurar botón de salida
+                    document.getElementById('ar-overlay').innerHTML += 
+                        '<button id="exit-ar" style="margin-top: 10px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Salir de AR</button>';
+                    
+                    document.getElementById('exit-ar').addEventListener('click', function() {
+                        session.end();
+                    });
                 });
             });
-        });
+            
+            // Manejar redimensionado de ventana
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onSelect() {
+            if (reticle.visible && horseModel) {
+                horseModel.position.setFromMatrixPosition(reticle.matrix);
+                horseModel.visible = true;
+                
+                // Ajustar la escala y rotación del modelo
+                horseModel.scale.set(0.5, 0.5, 0.5);
+                horseModel.rotation.y = Math.PI;
+            }
+        }
+
+        function onSessionEnd() {
+            arSession = false;
+            hitTestSource = null;
+            localSpace = null;
+            
+            // Restaurar UI
+            document.getElementById('info-panel').style.display = 'block';
+            document.getElementById('start-button').style.display = 'block';
+            document.getElementById('ar-overlay').style.display = 'none';
+            
+            if (horseModel) {
+                horseModel.visible = false;
+            }
+        }
+
+        function animate(time) {
+            // Actualizar animaciones del modelo
+            if (mixer) {
+                mixer.update(time * 0.001);
+            }
+            
+            // Realizar hit test si estamos en una sesión AR
+            if (arSession && hitTestSource && localSpace) {
+                const frame = renderer.xr.getFrame();
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                
+                if (hitTestResults.length) {
+                    const hit = hitTestResults[0];
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(hit.getPose(localSpace).transform.matrix);
+                } else {
+                    reticle.visible = false;
+                }
+            }
+            
+            // Renderizar escena
+            renderer.render(scene, camera);
+            
+            // Solicitar siguiente frame
+            renderer.setAnimationLoop(animate);
+        }
     </script>
 </body>
 </html>
