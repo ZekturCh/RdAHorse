@@ -12,7 +12,7 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             overflow: hidden;
             background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
             color: white;
@@ -36,7 +36,6 @@
         h1 {
             font-size: 1.8rem;
             margin-bottom: 10px;
-            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
         }
         
         p {
@@ -59,12 +58,6 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
         
-        #start-button:hover {
-            background: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
-        }
-        
         #loading {
             position: absolute;
             top: 50%;
@@ -75,7 +68,6 @@
             background: rgba(0, 0, 0, 0.8);
             padding: 30px;
             border-radius: 15px;
-            backdrop-filter: blur(10px);
         }
         
         .spinner {
@@ -102,7 +94,6 @@
             background: rgba(0, 0, 0, 0.6);
             padding: 15px;
             border-radius: 10px;
-            backdrop-filter: blur(5px);
             z-index: 1000;
         }
         
@@ -112,24 +103,6 @@
             left: 0;
             outline: none;
             z-index: 0;
-        }
-        
-        .hint {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.2);
-            padding: 10px 15px;
-            border-radius: 8px;
-            animation: pulse 2s infinite;
-            z-index: 1000;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 1; }
-            100% { opacity: 0.7; }
         }
         
         #error-message {
@@ -144,13 +117,24 @@
             text-align: center;
             z-index: 1000;
         }
+        
+        #ios-instructions {
+            display: none;
+            background: rgba(255, 165, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <div id="info-panel">
         <h1>Caballo en Realidad Aumentada</h1>
-        <p>Usa la cámara de tu dispositivo para colocar un caballo animado CGI en tu entorno real. Para comenzar, presiona el botón "Iniciar AR" y luego toca cualquier superficie para colocar el modelo.</p>
+        <p>Usa la cámara de tu dispositivo para colocar un caballo animado CGI en tu entorno real.</p>
         <button id="start-button">Iniciar AR</button>
+        <div id="ios-instructions">
+            <p><strong>Para iOS:</strong> Toca para permitir el acceso a la cámara cuando se solicite.</p>
+        </div>
     </div>
     
     <div id="loading">
@@ -166,36 +150,29 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/webxr/ARButton.js"></script>
 
     <script>
         // Variables globales
         let camera, scene, renderer;
-        let controller, reticle;
         let horseModel, mixer;
-        let hitTestSource = null;
-        let referenceSpace = null;
         let xrSession = null;
-        let arButton;
+        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-        // Comprobar compatibilidad con WebXR
-        if (navigator.xr) {
-            navigator.xr.isSessionSupported('immersive-ar')
-            .then((supported) => {
-                if (supported) {
-                    init();
-                } else {
-                    showError("Tu dispositivo o navegador no soporta Realidad Aumentada. Prueba con un dispositivo más moderno o otro navegador.");
-                }
-            })
-            .catch((error) => {
-                showError("Error al verificar compatibilidad AR: " + error.message);
-            });
-        } else {
-            showError("WebXR no está disponible en tu navegador. Prueba con Chrome para Android o Safari en iOS 15+.");
+        // Mostrar instrucciones específicas para iOS
+        if (isIOS) {
+            document.getElementById('ios-instructions').style.display = 'block';
         }
 
+        // Inicializar la aplicación
+        init();
+
         function init() {
+            // Verificar compatibilidad
+            if (!navigator.xr) {
+                showError("WebXR no está disponible en tu navegador. Usa Safari en iOS 15+ o Chrome en Android.");
+                return;
+            }
+
             // Crear escena
             scene = new THREE.Scene();
             
@@ -205,7 +182,7 @@
             // Crear renderizador
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(window.innerWidth / 2, window.innerHeight / 2); // Tamaño inicial reducido
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
             
@@ -217,19 +194,12 @@
             directionalLight.position.set(5, 10, 5);
             scene.add(directionalLight);
             
-            // Crear retículo (indicador de superficie)
-            reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.05, 0.1, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0xffffff })
-            );
-            reticle.visible = false;
-            reticle.matrixAutoUpdate = false;
-            scene.add(reticle);
-            
-            // Cargar el modelo 3D
+            // Cargar el modelo 3D (usando un modelo de ejemplo público para prueba)
             const loader = new THREE.GLTFLoader();
+            const modelUrl = 'HorseR.glb'; // Cambia por tu modelo
+            
             loader.load(
-                'HorseR.glb',
+                modelUrl,
                 function (gltf) {
                     horseModel = gltf.scene;
                     horseModel.visible = false;
@@ -243,23 +213,19 @@
                     }
                     
                     scene.add(horseModel);
-                    
-                    // Ocultar loading
                     document.getElementById('loading').style.display = 'none';
                 },
-                function (xhr) {
-                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-                },
+                undefined,
                 function (error) {
                     console.error('Error loading model:', error);
-                    document.getElementById('loading').querySelector('p').textContent = 
-                        'Error cargando el modelo. Verifica la consola para más detalles.';
+                    // Usar un modelo de cubo como fallback
+                    createFallbackModel();
+                    document.getElementById('loading').style.display = 'none';
                 }
             );
             
             // Configurar botón AR
-            arButton = document.getElementById('start-button');
-            arButton.addEventListener('click', startAR);
+            document.getElementById('start-button').addEventListener('click', startAR);
             
             // Manejar redimensionado de ventana
             window.addEventListener('resize', onWindowResize);
@@ -268,128 +234,95 @@
             animate();
         }
 
-        function startAR() {
-            // Ocultar UI inicial
-            document.getElementById('info-panel').style.display = 'none';
-            document.getElementById('ar-overlay').style.display = 'block';
-            
-            // Solicitar sesión AR
-            const sessionInit = { 
-                optionalFeatures: ['hit-test', 'dom-overlay'],
-                domOverlay: { root: document.body }
-            };
-            
-            navigator.xr.requestSession('immersive-ar', sessionInit)
-            .then(function(session) {
-                xrSession = session;
+        function createFallbackModel() {
+            // Crear un modelo de cubo simple como fallback
+            const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            horseModel = new THREE.Mesh(geometry, material);
+            horseModel.visible = false;
+            scene.add(horseModel);
+        }
+
+        async function startAR() {
+            try {
+                document.getElementById('info-panel').style.display = 'none';
+                document.getElementById('ar-overlay').style.display = 'block';
                 
-                // Configurar evento para finalizar sesión
-                session.addEventListener('end', onSessionEnd);
+                // Verificar soporte para WebXR
+                const supported = await navigator.xr.isSessionSupported('immersive-ar');
                 
-                // Configurar el renderizador para la sesión
-                renderer.xr.setSession(session);
+                if (!supported) {
+                    showError("La realidad aumentada no está soportada en tu dispositivo/navegador.");
+                    return;
+                }
+                
+                // Configuración para iOS
+                const sessionInit = { 
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.body }
+                };
+                
+                // Solicitar sesión AR
+                xrSession = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                
+                // Configurar eventos de sesión
+                xrSession.addEventListener('end', onSessionEnd);
+                renderer.xr.setSession(xrSession);
                 
                 // Configurar referencia de espacio
-                session.requestReferenceSpace('viewer')
-                .then((refSpace) => {
-                    referenceSpace = refSpace;
-                    
-                    // Solicitar fuente de hit-test
-                    session.requestHitTestSource({ space: referenceSpace })
-                    .then((source) => {
-                        hitTestSource = source;
-                    });
-                });
+                const referenceSpace = await xrSession.requestReferenceSpace('local');
+                
+                // Configurar hit-test
+                const hitTestSource = await xrSession.requestHitTestSource({ space: referenceSpace });
                 
                 // Crear botón de salida
                 const exitButton = document.createElement('button');
                 exitButton.textContent = 'Salir de AR';
                 exitButton.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;';
-                exitButton.addEventListener('click', () => {
-                    session.end();
-                });
-                
+                exitButton.addEventListener('click', () => xrSession.end());
                 document.getElementById('ar-overlay').appendChild(exitButton);
                 
-                // Configurar controlador
-                controller = renderer.xr.getController(0);
-                controller.addEventListener('select', onSelect);
-                scene.add(controller);
-            })
-            .catch(function(error) {
-                showError("Error al iniciAR AR: " + error.message);
-            });
+                // Ajustar tamaño del renderizador para AR
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                
+            } catch (error) {
+                console.error('Error starting AR:', error);
+                showError("Error al iniciar AR: " + error.message);
+            }
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function onSelect() {
-            if (reticle.visible && horseModel) {
-                horseModel.position.setFromMatrixPosition(reticle.matrix);
-                horseModel.visible = true;
-                
-                // Ajustar la escala y rotación del modelo
-                horseModel.scale.set(0.5, 0.5, 0.5);
-                horseModel.rotation.y = Math.PI;
+            if (!xrSession) {
+                renderer.setSize(window.innerWidth / 2, window.innerHeight / 2);
             }
         }
 
         function onSessionEnd() {
-            // Limpiar recursos
-            if (hitTestSource) {
-                hitTestSource.cancel();
-                hitTestSource = null;
-            }
-            
-            referenceSpace = null;
             xrSession = null;
-            
-            // Restaurar UI
             document.getElementById('info-panel').style.display = 'block';
             document.getElementById('ar-overlay').style.display = 'none';
+            document.getElementById('ar-overlay').innerHTML = '<p>Mueve tu dispositivo para detectar superficies y toca para colocar el caballo</p>';
             
             if (horseModel) {
                 horseModel.visible = false;
             }
             
-            // Remover controlador
-            if (controller) {
-                scene.remove(controller);
-                controller = null;
-            }
+            // Restaurar tamaño del renderizador
+            renderer.setSize(window.innerWidth / 2, window.innerHeight / 2);
         }
 
         function animate(time) {
-            // Actualizar animaciones del modelo
+            // Actualizar animaciones
             if (mixer) {
-                mixer.update(renderer.xr.getSession() ? time * 0.001 : 0.016);
-            }
-            
-            // Realizar hit test si estamos en una sesión AR
-            if (xrSession && hitTestSource && referenceSpace) {
-                const frame = renderer.xr.getFrame();
-                if (frame) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        reticle.visible = true;
-                        const pose = hit.getPose(referenceSpace);
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
+                mixer.update(0.016);
             }
             
             // Renderizar escena
             renderer.render(scene, camera);
             
-            // Solicitar siguiente frame
             requestAnimationFrame(animate);
         }
 
@@ -397,8 +330,20 @@
             document.getElementById('loading').style.display = 'none';
             const errorDiv = document.getElementById('error-message');
             errorDiv.style.display = 'block';
-            errorDiv.innerHTML = `<p>${message}</p><button onclick="location.reload()">Reintentar</button>`;
-            console.error(message);
+            errorDiv.innerHTML = `
+                <p>${message}</p>
+                <p>Prueba con Safari en iOS 15+ y asegúrate de permitir el acceso a la cámara.</p>
+                <button onclick="location.reload()" style="padding: 10px 20px; background: white; border: none; border-radius: 5px; margin-top: 10px;">Reintentar</button>
+            `;
+        }
+
+        // Detectar si es iOS y mostrar mensaje específico
+        if (isIOS) {
+            // Verificar versión de iOS
+            const iosVersion = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+            if (iosVersion && parseInt(iosVersion[1]) < 15) {
+                showError("Necesitas iOS 15 o superior para usar Realidad Aumentada. Tu versión: " + iosVersion[0]);
+            }
         }
     </script>
 </body>
