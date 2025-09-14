@@ -103,6 +103,7 @@
             padding: 15px;
             border-radius: 10px;
             backdrop-filter: blur(5px);
+            z-index: 1000;
         }
         
         canvas {
@@ -110,6 +111,7 @@
             top: 0;
             left: 0;
             outline: none;
+            z-index: 0;
         }
         
         .hint {
@@ -121,12 +123,26 @@
             padding: 10px 15px;
             border-radius: 8px;
             animation: pulse 2s infinite;
+            z-index: 1000;
         }
         
         @keyframes pulse {
             0% { opacity: 0.7; }
             50% { opacity: 1; }
             100% { opacity: 0.7; }
+        }
+        
+        #error-message {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -146,9 +162,10 @@
         <p>Mueve tu dispositivo para detectar superficies y toca para colocar el caballo</p>
     </div>
     
+    <div id="error-message"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/XRControllerModelFactory.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/webxr/ARButton.js"></script>
 
     <script>
@@ -157,12 +174,26 @@
         let controller, reticle;
         let horseModel, mixer;
         let hitTestSource = null;
-        let localSpace = null;
-        let arSession = false;
+        let referenceSpace = null;
+        let xrSession = null;
+        let arButton;
 
-        // Inicializar la aplicación
-        init();
-        animate();
+        // Comprobar compatibilidad con WebXR
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported('immersive-ar')
+            .then((supported) => {
+                if (supported) {
+                    init();
+                } else {
+                    showError("Tu dispositivo o navegador no soporta Realidad Aumentada. Prueba con un dispositivo más moderno o otro navegador.");
+                }
+            })
+            .catch((error) => {
+                showError("Error al verificar compatibilidad AR: " + error.message);
+            });
+        } else {
+            showError("WebXR no está disponible en tu navegador. Prueba con Chrome para Android o Safari en iOS 15+.");
+        }
 
         function init() {
             // Crear escena
@@ -226,45 +257,68 @@
                 }
             );
             
-            // Configurar controlador WebXR
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
-            
             // Configurar botón AR
-            document.getElementById('start-button').addEventListener('click', function() {
-                this.style.display = 'none';
-                document.getElementById('info-panel').style.display = 'none';
-                document.getElementById('ar-overlay').style.display = 'block';
-                
-                // Iniciar sesión AR
-                renderer.xr.setReferenceSpaceType('local');
-                const sessionInit = { optionalFeatures: ['hit-test'] };
-                
-                navigator.xr.requestSession('immersive-ar', sessionInit).then(function(session) {
-                    arSession = true;
-                    session.addEventListener('end', onSessionEnd);
-                    
-                    // Configurar espacio local
-                    session.requestReferenceSpace('local').then(function(space) {
-                        localSpace = space;
-                        session.requestHitTestSource({ space: localSpace }).then(function(source) {
-                            hitTestSource = source;
-                        });
-                    });
-                    
-                    // Configurar botón de salida
-                    document.getElementById('ar-overlay').innerHTML += 
-                        '<button id="exit-ar" style="margin-top: 10px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Salir de AR</button>';
-                    
-                    document.getElementById('exit-ar').addEventListener('click', function() {
-                        session.end();
-                    });
-                });
-            });
+            arButton = document.getElementById('start-button');
+            arButton.addEventListener('click', startAR);
             
             // Manejar redimensionado de ventana
             window.addEventListener('resize', onWindowResize);
+            
+            // Iniciar bucle de animación
+            animate();
+        }
+
+        function startAR() {
+            // Ocultar UI inicial
+            document.getElementById('info-panel').style.display = 'none';
+            document.getElementById('ar-overlay').style.display = 'block';
+            
+            // Solicitar sesión AR
+            const sessionInit = { 
+                optionalFeatures: ['hit-test', 'dom-overlay'],
+                domOverlay: { root: document.body }
+            };
+            
+            navigator.xr.requestSession('immersive-ar', sessionInit)
+            .then(function(session) {
+                xrSession = session;
+                
+                // Configurar evento para finalizar sesión
+                session.addEventListener('end', onSessionEnd);
+                
+                // Configurar el renderizador para la sesión
+                renderer.xr.setSession(session);
+                
+                // Configurar referencia de espacio
+                session.requestReferenceSpace('viewer')
+                .then((refSpace) => {
+                    referenceSpace = refSpace;
+                    
+                    // Solicitar fuente de hit-test
+                    session.requestHitTestSource({ space: referenceSpace })
+                    .then((source) => {
+                        hitTestSource = source;
+                    });
+                });
+                
+                // Crear botón de salida
+                const exitButton = document.createElement('button');
+                exitButton.textContent = 'Salir de AR';
+                exitButton.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                exitButton.addEventListener('click', () => {
+                    session.end();
+                });
+                
+                document.getElementById('ar-overlay').appendChild(exitButton);
+                
+                // Configurar controlador
+                controller = renderer.xr.getController(0);
+                controller.addEventListener('select', onSelect);
+                scene.add(controller);
+            })
+            .catch(function(error) {
+                showError("Error al iniciAR AR: " + error.message);
+            });
         }
 
         function onWindowResize() {
@@ -285,37 +339,50 @@
         }
 
         function onSessionEnd() {
-            arSession = false;
-            hitTestSource = null;
-            localSpace = null;
+            // Limpiar recursos
+            if (hitTestSource) {
+                hitTestSource.cancel();
+                hitTestSource = null;
+            }
+            
+            referenceSpace = null;
+            xrSession = null;
             
             // Restaurar UI
             document.getElementById('info-panel').style.display = 'block';
-            document.getElementById('start-button').style.display = 'block';
             document.getElementById('ar-overlay').style.display = 'none';
             
             if (horseModel) {
                 horseModel.visible = false;
+            }
+            
+            // Remover controlador
+            if (controller) {
+                scene.remove(controller);
+                controller = null;
             }
         }
 
         function animate(time) {
             // Actualizar animaciones del modelo
             if (mixer) {
-                mixer.update(time * 0.001);
+                mixer.update(renderer.xr.getSession() ? time * 0.001 : 0.016);
             }
             
             // Realizar hit test si estamos en una sesión AR
-            if (arSession && hitTestSource && localSpace) {
+            if (xrSession && hitTestSource && referenceSpace) {
                 const frame = renderer.xr.getFrame();
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                
-                if (hitTestResults.length) {
-                    const hit = hitTestResults[0];
-                    reticle.visible = true;
-                    reticle.matrix.fromArray(hit.getPose(localSpace).transform.matrix);
-                } else {
-                    reticle.visible = false;
+                if (frame) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        reticle.visible = true;
+                        const pose = hit.getPose(referenceSpace);
+                        reticle.matrix.fromArray(pose.transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
                 }
             }
             
@@ -323,7 +390,15 @@
             renderer.render(scene, camera);
             
             // Solicitar siguiente frame
-            renderer.setAnimationLoop(animate);
+            requestAnimationFrame(animate);
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `<p>${message}</p><button onclick="location.reload()">Reintentar</button>`;
+            console.error(message);
         }
     </script>
 </body>
