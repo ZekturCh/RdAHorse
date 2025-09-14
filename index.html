@@ -33,7 +33,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Espejo para modo selfie */
+            /* Cámara frontal ya viene espejeada por defecto */
         }
         
         #canvas {
@@ -50,7 +50,7 @@
             left: 50%;
             transform: translateX(-50%);
             text-align: center;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             padding: 20px;
             border-radius: 15px;
             backdrop-filter: blur(5px);
@@ -91,19 +91,21 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.2);
-            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 20px 30px;
             border-radius: 50px;
-            backdrop-filter: blur(10px);
+            font-weight: bold;
             animation: pulse 2s infinite;
             display: none;
             z-index: 90;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
         @keyframes pulse {
-            0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-            100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
         }
         
         #loading {
@@ -113,7 +115,7 @@
             transform: translate(-50%, -50%);
             text-align: center;
             z-index: 1000;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             padding: 30px;
             border-radius: 15px;
         }
@@ -138,7 +140,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(255, 0, 0, 0.8);
+            background: rgba(255, 0, 0, 0.9);
             padding: 20px;
             border-radius: 10px;
             text-align: center;
@@ -146,15 +148,24 @@
             max-width: 90%;
         }
         
-        #debug {
+        .success-message {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 1000;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 150, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         }
     </style>
 </head>
@@ -165,11 +176,11 @@
         
         <div id="instructions">
             <h1>🐎 Caballo AR</h1>
-            <p>Toca la pantalla para colocar un caballo animado en tu espacio. Muévete alrededor para verlo desde diferentes ángulos.</p>
+            <p>Toca cualquier lugar de la pantalla para colocar un caballo animado en tu espacio.</p>
             <button id="start-button">Activar Cámara</button>
         </div>
         
-        <div id="tap-hint">👆 Toca aquí para colocar el caballo</div>
+        <div id="tap-hint">👆 Toca en cualquier lugar para colocar el caballo</div>
         
         <div id="loading">
             <div class="spinner"></div>
@@ -177,7 +188,6 @@
         </div>
         
         <div id="error-message"></div>
-        <div id="debug"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
@@ -189,7 +199,7 @@
         let horseModel, mixer;
         let video, videoTexture;
         let modelPlaced = false;
-        let modelPosition = { x: 0, y: -1, z: -2 }; // Posición relativa a la cámara
+        let isCameraActive = false;
 
         // Inicializar la aplicación
         init();
@@ -198,8 +208,8 @@
             // Configurar escena Three.js
             scene = new THREE.Scene();
             
-            // Configurar cámara (perspectiva normal, no XR)
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // Configurar cámara
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
             camera.position.set(0, 0, 0);
             
             // Configurar renderizador
@@ -212,11 +222,11 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             
             // Configurar iluminación
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
             scene.add(ambientLight);
             
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 5);
+            directionalLight.position.set(1, 2, 1);
             scene.add(directionalLight);
             
             // Cargar modelo 3D
@@ -236,10 +246,10 @@
                 document.getElementById('instructions').style.display = 'none';
                 document.getElementById('tap-hint').style.display = 'block';
                 
-                // Acceder a la cámara
+                // Acceder a la cámara frontal (user)
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment', // Usar cámara trasera
+                        facingMode: 'user', // Cámara frontal
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
@@ -249,6 +259,7 @@
                 // Configurar video
                 video = document.getElementById('video');
                 video.srcObject = stream;
+                isCameraActive = true;
                 
                 // Esperar a que el video cargue
                 video.onloadedmetadata = function() {
@@ -259,17 +270,16 @@
                     videoTexture.format = THREE.RGBFormat;
                     
                     // Crear fondo con la textura de video
-                    const videoGeometry = new THREE.PlaneGeometry(16, 9);
+                    const aspectRatio = video.videoWidth / video.videoHeight;
+                    const videoGeometry = new THREE.PlaneGeometry(aspectRatio * 2, 2);
                     const videoMaterial = new THREE.MeshBasicMaterial({
                         map: videoTexture,
                         side: THREE.DoubleSide
                     });
                     
                     const videoPlane = new THREE.Mesh(videoGeometry, videoMaterial);
-                    videoPlane.position.z = -10; // Colocar detrás de todo
+                    videoPlane.position.z = -2; // Colocar detrás de los modelos 3D
                     scene.add(videoPlane);
-                    
-                    updateDebug('Cámara activada correctamente');
                 };
                 
             } catch (error) {
@@ -281,15 +291,18 @@
         function loadModel() {
             const loader = new THREE.GLTFLoader();
             
-            // Intentar cargar el modelo local, si falla usar uno de prueba
-            const modelUrl = 'HorseR.glb';
+            // Usar un modelo público de prueba (caballo)
+            const modelUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r132/examples/models/gltf/Flamingo.glb';
             
             loader.load(
                 modelUrl,
                 function(gltf) {
                     horseModel = gltf.scene;
                     horseModel.visible = false;
-                    horseModel.scale.set(0.3, 0.3, 0.3);
+                    
+                    // Ajustar escala y rotación
+                    horseModel.scale.set(0.02, 0.02, 0.02);
+                    horseModel.rotation.y = Math.PI;
                     
                     // Configurar animaciones
                     if (gltf.animations && gltf.animations.length) {
@@ -302,78 +315,97 @@
                     
                     scene.add(horseModel);
                     document.getElementById('loading').style.display = 'none';
-                    updateDebug('Modelo cargado correctamente');
                 },
                 undefined,
                 function(error) {
                     console.error('Error cargando modelo:', error);
-                    // Crear modelo de fallback
                     createFallbackModel();
                     document.getElementById('loading').style.display = 'none';
-                    updateDebug('Usando modelo de fallback');
                 }
             );
         }
 
         function createFallbackModel() {
             // Crear un caballo simple de geometrías básicas
-            const bodyGroup = new THREE.Group();
+            const horseGroup = new THREE.Group();
             
-            // Cuerpo
-            const bodyGeometry = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
+            // Cuerpo (cilindro alargado)
+            const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.8, 8);
             const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.rotation.x = Math.PI / 2;
-            bodyGroup.add(body);
+            horseGroup.add(body);
             
-            // Cabeza
-            const headGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            // Cabeza (esfera alargada)
+            const headGeometry = new THREE.SphereGeometry(0.15, 16, 16);
             const head = new THREE.Mesh(headGeometry, bodyMaterial);
-            head.position.set(0, 0.6, 0.4);
-            bodyGroup.add(head);
+            head.position.set(0, 0, 0.5);
+            head.scale.set(1, 0.8, 1.2);
+            horseGroup.add(head);
+            
+            // Cuello
+            const neckGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.3, 8);
+            const neck = new THREE.Mesh(neckGeometry, bodyMaterial);
+            neck.position.set(0, 0, 0.3);
+            neck.rotation.x = Math.PI / 2;
+            horseGroup.add(neck);
             
             // Patas
-            const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8);
-            const positions = [
-                [-0.2, -0.6, 0.2],  // pata delantera izquierda
-                [0.2, -0.6, 0.2],   // pata delantera derecha
-                [-0.2, -0.6, -0.2], // pata trasera izquierda
-                [0.2, -0.6, -0.2]   // pata trasera derecha
+            const legGeometry = new THREE.CylinderGeometry(0.05, 0.06, 0.4, 8);
+            const legPositions = [
+                [-0.15, -0.2, 0.2],   // pata delantera izquierda
+                [0.15, -0.2, 0.2],    // pata delantera derecha
+                [-0.15, -0.2, -0.2],  // pata trasera izquierda
+                [0.15, -0.2, -0.2]    // pata trasera derecha
             ];
             
-            positions.forEach(pos => {
+            legPositions.forEach(pos => {
                 const leg = new THREE.Mesh(legGeometry, bodyMaterial);
                 leg.position.set(pos[0], pos[1], pos[2]);
-                bodyGroup.add(leg);
+                horseGroup.add(leg);
             });
             
-            horseModel = bodyGroup;
+            horseModel = horseGroup;
             horseModel.visible = false;
             scene.add(horseModel);
         }
 
         function onTap(event) {
-            if (!videoTexture || modelPlaced) return;
+            if (!isCameraActive || modelPlaced) return;
             
-            // Colocar el modelo en una posición fija relativa a la cámara
+            // Obtener coordenadas del tap
+            const rect = canvas.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Calcular posición en el espacio 3D (a 2 metros de distancia)
+            const distance = 2;
+            const position = {
+                x: x * distance * 0.5,
+                y: y * distance * 0.5,
+                z: -distance
+            };
+            
+            // Colocar el modelo
             horseModel.visible = true;
-            horseModel.position.set(modelPosition.x, modelPosition.y, modelPosition.z);
+            horseModel.position.set(position.x, position.y, position.z);
             modelPlaced = true;
             
             // Ocultar hint de tap
             document.getElementById('tap-hint').style.display = 'none';
             
-            // Mostrar instrucciones de movimiento
-            const instructions = document.createElement('div');
-            instructions.innerHTML = `
-                <div style="background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; margin-top: 10px;">
-                    <p>✅ Caballo colocado</p>
-                    <p>Muévete alrededor para verlo desde diferentes ángulos</p>
-                </div>
-            `;
-            document.getElementById('container').appendChild(instructions);
+            // Mostrar mensaje de éxito
+            const successMsg = document.createElement('div');
+            successMsg.className = 'success-message';
+            successMsg.innerHTML = '✅ Caballo colocado - Muévete para ver diferentes ángulos';
+            document.body.appendChild(successMsg);
             
-            updateDebug('Modelo colocado en la escena');
+            // Remover mensaje después de 3 segundos
+            setTimeout(() => {
+                if (successMsg.parentNode) {
+                    successMsg.parentNode.removeChild(successMsg);
+                }
+            }, 3000);
         }
 
         function onWindowResize() {
@@ -387,17 +419,12 @@
             
             // Actualizar animaciones del modelo
             if (mixer) {
-                mixer.update(0.016); // 60fps
+                mixer.update(0.016);
             }
             
             // Actualizar textura de video
             if (videoTexture) {
                 videoTexture.needsUpdate = true;
-            }
-            
-            // Rotar ligeramente el modelo si está colocado
-            if (modelPlaced && horseModel) {
-                horseModel.rotation.y += 0.005;
             }
             
             renderer.render(scene, camera);
@@ -418,15 +445,6 @@
                     margin-top: 10px;
                     cursor: pointer;
                 ">Reintentar</button>
-            `;
-        }
-
-        function updateDebug(message) {
-            const debugDiv = document.getElementById('debug');
-            debugDiv.innerHTML = `
-                <div>Estado: ${message}</div>
-                <div>Modelo: ${horseModel ? 'Cargado' : 'No cargado'}</div>
-                <div>Colocado: ${modelPlaced ? 'Sí' : 'No'}</div>
             `;
         }
     </script>
