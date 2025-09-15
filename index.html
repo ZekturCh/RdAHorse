@@ -1,250 +1,45 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>AR - Caballo 3D</title>
-    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
-            color: white;
-            overflow: hidden;
-            height: 100vh;
-        }
-        
-        .arjs-loader {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        
-        .loader-text {
-            color: white;
-            font-size: 1.2rem;
-        }
-        
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #4CAF50;
-            animation: spin 1s ease-in-out infinite;
-            margin: 0 auto 15px;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        #instructions {
-            position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(5px);
-            z-index: 100;
-            width: 90%;
-            max-width: 400px;
-        }
-        
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            color: #4CAF50;
-        }
-        
-        p {
-            margin-bottom: 15px;
-            line-height: 1.5;
-        }
-        
-        #start-button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1.1rem;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        #start-button:hover {
-            background: #45a049;
-            transform: scale(1.05);
-        }
-        
-        #tap-hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
-            color: #000;
-            padding: 20px 30px;
-            border-radius: 50px;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-            display: none;
-            z-index: 90;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-        }
-        
-        .success-message {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 150, 0, 0.9);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            z-index: 100;
-            animation: fadeInOut 3s ease-in-out;
-        }
-        
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-            20% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            80% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>AR - Caballo 3D</title>
+  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+  </style>
 </head>
 <body>
-    <div class="arjs-loader">
-        <div>
-            <div class="spinner"></div>
-            <div class="loader-text">Cargando experiencia AR...</div>
-        </div>
-    </div>
-
-    <div id="instructions">
-        <h1>🐎 Caballo AR</h1>
-        <p>Haz clic en cualquier lugar para colocar un caballo animado en tu espacio.</p>
-        <button id="start-button">Activar Cámara</button>
-    </div>
+  <a-scene
+    vr-mode-ui="enabled: false"
+    loading-screen="enabled: false"
+    embedded
+    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
     
-    <div id="tap-hint">👆 Toca en cualquier lugar para colocar el caballo</div>
+    <a-assets>
+      <a-asset-item id="horse-model" src="HorseR.glb"></a-asset-item>
+    </a-assets>
 
-    <a-scene id="scene" vr-mode-ui="enabled: false" loading-screen="enabled: false;" embedded arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
-        <a-assets>
-            <a-asset-item id="horse-model" src="HorseR.glb"></a-asset-item>
-        </a-assets>
-        
-        <!-- Marcador de posición (solo visible después del clic) -->
-        <a-entity id="horse-entity" 
-                  gltf-model="#horse-model" 
-                  scale="1 1 1" 
-                  position="-0.5 0 -2" 
-                  visible="false" 
-                  animation-mixer="loop: repeat">
-        </a-entity>
-        
-        <a-camera position="0 0 0"></a-camera>
-    </a-scene>
+    <!-- Caballo fijo en el mundo AR -->
+    <a-entity 
+      id="horse-entity" 
+      gltf-model="#horse-model" 
+      position="-0.5 -1 -4" 
+      scale="1 1 1" 
+      rotation="0 0 0"
+      animation-mixer="loop: repeat">
+    </a-entity>
 
-    <script>
-        window.onload = function () {
-            // Ocultar loader cuando la escena esté cargada
-            document.querySelector('a-scene').addEventListener('loaded', function() {
-                document.querySelector('.arjs-loader').style.display = 'none';
-            });
-
-            // Variables
-            let modelVisible = false;
-            const horseEntity = document.getElementById('horse-entity');
-            const startButton = document.getElementById('start-button');
-            const tapHint = document.getElementById('tap-hint');
-            const instructions = document.getElementById('instructions');
-
-            // Iniciar cámara al hacer clic en el botón
-            startButton.addEventListener('click', function() {
-                instructions.style.display = 'none';
-                tapHint.style.display = 'block';
-                
-                // Forzar el inicio de la cámara AR
-                const scene = document.querySelector('a-scene');
-                if (scene.hasLoaded) {
-                    scene.enterVR();
-                }
-            });
-
-            // Colocar modelo al hacer clic/tocar
-            document.addEventListener('click', function(event) {
-                if (!modelVisible) {
-                    // Hacer visible el modelo
-                    horseEntity.setAttribute('visible', 'true');
-                    modelVisible = true;
-                    
-                    // Ocultar el hint
-                    tapHint.style.display = 'none';
-                    
-                    // Mostrar mensaje de éxito
-                    const successMsg = document.createElement('div');
-                    successMsg.className = 'success-message';
-                    successMsg.innerHTML = '✅ Caballo colocado - Muévete para ver diferentes ángulos';
-                    document.body.appendChild(successMsg);
-                    
-                    // Remover mensaje después de 3 segundos
-                    setTimeout(() => {
-                        if (successMsg.parentNode) {
-                            successMsg.parentNode.removeChild(successMsg);
-                        }
-                    }, 3000);
-                }
-            });
-
-            // También responder a eventos táctiles
-            document.addEventListener('touchstart', function(event) {
-                if (!modelVisible) {
-                    event.preventDefault();
-                    horseEntity.setAttribute('visible', 'true');
-                    modelVisible = true;
-                    tapHint.style.display = 'none';
-                    
-                    const successMsg = document.createElement('div');
-                    successMsg.className = 'success-message';
-                    successMsg.innerHTML = '✅ Caballo colocado - Muévete para ver diferentes ángulos';
-                    document.body.appendChild(successMsg);
-                    
-                    setTimeout(() => {
-                        if (successMsg.parentNode) {
-                            successMsg.parentNode.removeChild(successMsg);
-                        }
-                    }, 3000);
-                }
-            });
-        };
-    </script>
+    <!-- Cámara "normal" AR.js -->
+    <a-camera position="0 0 0"></a-camera>
+    
+  </a-scene>
 </body>
 </html>
