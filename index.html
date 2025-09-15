@@ -156,13 +156,19 @@
     
     <div id="tap-hint">👆 Toca en cualquier lugar para colocar el caballo</div>
 
-    <a-scene id="scene" vr-mode-ui="enabled: false" loading-screen="enabled: false;" embedded arjs="sourceType: webcam; facingMode: environment;">
+    <a-scene id="scene" vr-mode-ui="enabled: false" loading-screen="enabled: false;" embedded arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
         <a-assets>
             <a-asset-item id="horse-model" src="HorseR.glb"></a-asset-item>
         </a-assets>
         
         <!-- Marcador de posición (solo visible después del clic) -->
-        <a-entity id="horse-entity" gltf-model="#horse-model" scale="1 1 1" position="0 0 -2" visible="false" animation-mixer="loop: repeat"></a-entity>
+        <a-entity id="horse-entity" 
+                  gltf-model="#horse-model" 
+                  scale="1 1 1" 
+                  position="-0.5 0 -2" 
+                  visible="false" 
+                  animation-mixer="loop: repeat">
+        </a-entity>
         
         <a-camera position="0 0 0"></a-camera>
     </a-scene>
