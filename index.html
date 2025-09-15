@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>AR - Caballo 3D</title>
+  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <a-scene
+    vr-mode-ui="enabled: false"
+    loading-screen="enabled: false"
+    embedded
+    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
+    
+    <a-assets>
+      <a-asset-item id="horse-model" src="HorseR.glb"></a-asset-item>
+    </a-assets>
+
+    <!-- Caballo fijo en el mundo AR -->
+    <a-entity 
+      id="horse-entity" 
+      gltf-model="#horse-model" 
+      position="-0.5 -1 -4" 
+      scale="1 1 1" 
+      rotation="0 0 0"
+      animation-mixer="loop: repeat">
+    </a-entity>
+
+    <!-- Cámara "normal" AR.js -->
+    <a-camera position="0 0 0"></a-camera>
+    
+  </a-scene>
+</body>
+</html>
