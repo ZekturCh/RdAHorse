@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caballo AR Simple</title>
+    <title>Caballo AR - Cámara Principal</title>
     <style>
         * {
             margin: 0;
@@ -33,7 +33,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Cámara frontal ya viene espejeada por defecto */
+            /* No volteamos la cámara trasera */
         }
         
         #canvas {
@@ -167,6 +167,20 @@
             80% { opacity: 1; transform: translateX(-50%) translateY(0); }
             100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         }
+
+        #switch-camera {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 100;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -175,9 +189,9 @@
         <canvas id="canvas"></canvas>
         
         <div id="instructions">
-            <h1>🐎 Caballo AR</h1>
-            <p>Toca cualquier lugar de la pantalla para colocar un caballo animado en tu espacio.</p>
-            <button id="start-button">Activar Cámara</button>
+            <h1>🐎 Caballo AR - Cámara Principal</h1>
+            <p>Usa la cámara trasera para colocar un caballo animado en el mundo real.</p>
+            <button id="start-button">Activar Cámara Trasera</button>
         </div>
         
         <div id="tap-hint">👆 Toca en cualquier lugar para colocar el caballo</div>
@@ -188,6 +202,7 @@
         </div>
         
         <div id="error-message"></div>
+        <button id="switch-camera">🔁 Cambiar Cámara</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
@@ -200,6 +215,8 @@
         let video, videoTexture;
         let modelPlaced = false;
         let isCameraActive = false;
+        let currentFacingMode = 'environment'; // Cámara trasera por defecto
+        let stream = null;
 
         // Inicializar la aplicación
         init();
@@ -234,6 +251,7 @@
             
             // Configurar eventos
             document.getElementById('start-button').addEventListener('click', startCamera);
+            document.getElementById('switch-camera').addEventListener('click', switchCamera);
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('click', onTap);
             
@@ -245,13 +263,19 @@
             try {
                 document.getElementById('instructions').style.display = 'none';
                 document.getElementById('tap-hint').style.display = 'block';
+                document.getElementById('switch-camera').style.display = 'block';
                 
-                // Acceder a la cámara frontal (user)
-                const stream = await navigator.mediaDevices.getUserMedia({
+                // Detener stream anterior si existe
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Acceder a la cámara trasera
+                stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'user', // Cámara frontal
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: 'environment', // Cámara trasera
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     },
                     audio: false
                 });
@@ -278,13 +302,46 @@
                     });
                     
                     const videoPlane = new THREE.Mesh(videoGeometry, videoMaterial);
-                    videoPlane.position.z = -2; // Colocar detrás de los modelos 3D
+                    videoPlane.position.z = -2;
                     scene.add(videoPlane);
                 };
                 
             } catch (error) {
                 console.error('Error accediendo a la cámara:', error);
-                showError('No se pudo acceder a la cámara: ' + error.message);
+                showError('No se pudo acceder a la cámara trasera: ' + error.message);
+            }
+        }
+
+        async function switchCamera() {
+            // Cambiar entre cámara frontal y trasera
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            
+            try {
+                // Detener stream actual
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Acceder a la nueva cámara
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                });
+                
+                // Actualizar video
+                video.srcObject = stream;
+                
+                // Actualizar texto del botón
+                document.getElementById('switch-camera').textContent = 
+                    currentFacingMode === 'environment' ? '🔁 Cámara Frontal' : '🔁 Cámara Trasera';
+                
+            } catch (error) {
+                console.error('Error cambiando cámara:', error);
+                showError('Error al cambiar de cámara: ' + error.message);
             }
         }
 
@@ -292,7 +349,7 @@
             const loader = new THREE.GLTFLoader();
             
             // Usar un modelo público de prueba (caballo)
-            const modelUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r132/examples/models/gltf/Flamingo.glb';
+            const modelUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r132/examples/models/gltf/Horse.glb';
             
             loader.load(
                 modelUrl,
@@ -301,7 +358,7 @@
                     horseModel.visible = false;
                     
                     // Ajustar escala y rotación
-                    horseModel.scale.set(0.02, 0.02, 0.02);
+                    horseModel.scale.set(1.5, 1.5, 1.5);
                     horseModel.rotation.y = Math.PI;
                     
                     // Configurar animaciones
@@ -365,6 +422,13 @@
                 horseGroup.add(leg);
             });
             
+            // Cola
+            const tailGeometry = new THREE.ConeGeometry(0.05, 0.2, 8);
+            const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+            tail.position.set(0, 0, -0.5);
+            tail.rotation.x = Math.PI / 4;
+            horseGroup.add(tail);
+            
             horseModel = horseGroup;
             horseModel.visible = false;
             scene.add(horseModel);
@@ -378,11 +442,11 @@
             const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             
-            // Calcular posición en el espacio 3D (a 2 metros de distancia)
-            const distance = 2;
+            // Calcular posición en el espacio 3D (a 3 metros de distancia)
+            const distance = 3;
             const position = {
-                x: x * distance * 0.5,
-                y: y * distance * 0.5,
+                x: x * distance * 0.7,
+                y: y * distance * 0.7,
                 z: -distance
             };
             
@@ -438,15 +502,4 @@
                 <h3>⚠️ Error</h3>
                 <p>${message}</p>
                 <button onclick="location.reload()" style="
-                    padding: 10px 20px; 
-                    background: white; 
-                    border: none; 
-                    border-radius: 5px; 
-                    margin-top: 10px;
-                    cursor: pointer;
-                ">Reintentar</button>
-            `;
-        }
-    </script>
-</body>
-</html>
+                    padding: 10px 20px;
