@@ -194,28 +194,6 @@
       height: 100%;
       z-index: 5;
     }
-    
-    /* Marcador visual para ayudar al usuario */
-    .marker-hint {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80px;
-      height: 80px;
-      border: 3px dashed #4CAF50;
-      border-radius: 10px;
-      display: none;
-      z-index: 15;
-      pointer-events: none;
-      animation: pulseHint 2s infinite;
-    }
-    
-    @keyframes pulseHint {
-      0% { opacity: 0.3; }
-      50% { opacity: 0.8; }
-      100% { opacity: 0.3; }
-    }
   </style>
 </head>
 <body>
@@ -239,10 +217,7 @@
   </div>
 
   <!-- Botón para mostrar el caballo -->
-  <button id="show-horse-btn">Colocar Caballo</button>
-
-  <!-- Marcador visual -->
-  <div class="marker-hint" id="marker-hint"></div>
+  <button id="show-horse-btn">Mostrar Caballo</button>
 
   <!-- Capa para prevenir interacciones no deseadas -->
   <div class="prevent-touch" id="touch-blocker" style="display: none;"></div>
@@ -253,29 +228,27 @@
       vr-mode-ui="enabled: false"
       loading-screen="enabled: false"
       embedded
-      arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
-      renderer="logarithmicDepthBuffer: true; precision: medium;"
+      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
       cursor="rayOrigin: mouse">
       
       <a-assets>
-        <a-asset-item id="horse-model" src="HorseRA.glb"></a-asset-item>
+        <a-asset-item id="horse-model" src="HorseR.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Marcador para anclar el modelo al mundo real -->
-      <a-marker id="horse-marker" type="pattern" preset="custom" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/patt.kanji" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
-        <a-entity 
-          id="horse-entity" 
-          gltf-model="#horse-model" 
-          position="0 -0.5 0" 
-          scale="0.8 0.8 0.8" 
-          rotation="0 180 0"
-          visible="true"
-          animation-mixer="loop: repeat">
-        </a-entity>
-      </a-marker>
+      <!-- Caballo fijo en el mundo AR (inicialmente oculto) -->
+      <a-entity 
+        id="horse-entity" 
+        gltf-model="#horse-model" 
+        position="-0.5 -1 -4" 
+        scale="1 1 1" 
+        rotation="0 0 90"
+        visible="false"
+        static-body
+        animation-mixer="loop: repeat">
+      </a-entity>
 
-      <!-- Cámara -->
-      <a-entity camera></a-entity>
+      <!-- Cámara "normal" AR.js -->
+      <a-camera position="0 0 0" cursor="fuse: false"></a-camera>
       
     </a-scene>
   </div>
@@ -289,20 +262,15 @@
       const sceneContainer = document.getElementById('scene-container');
       const startArBtn = document.getElementById('start-ar-btn');
       const touchBlocker = document.getElementById('touch-blocker');
-      const markerHint = document.getElementById('marker-hint');
       
       let horseVisible = false;
       let arStarted = false;
-      let markerDetected = false;
 
       // Precargar el modelo antes de iniciar
       const scene = document.querySelector('a-scene');
       
       // Prevenir que el modelo se cargue automáticamente
       const horseEntity = document.getElementById('horse-entity');
-      const horseMarker = document.getElementById('horse-marker');
-      
-      // Inicialmente ocultar el modelo
       horseEntity.setAttribute('visible', 'false');
       
       // Deshabilitar interacciones por defecto
@@ -324,28 +292,25 @@
         sceneContainer.style.opacity = '1';
         alignmentGuide.style.display = 'flex';
         showHorseBtn.style.display = 'block';
-        markerHint.style.display = 'block';
-        touchBlocker.style.display = 'block';
+        touchBlocker.style.display = 'block'; // Bloquear interacciones
         arStarted = true;
         
         // Asegurarse de que el modelo esté oculto al iniciar
         horseEntity.setAttribute('visible', 'false');
         horseVisible = false;
-        markerDetected = false;
       });
 
-      // Mostrar el caballo cuando se detecte el marcador
+      // Mostrar el caballo
       showHorseBtn.addEventListener('click', function() {
-        if (arStarted && markerDetected) {
+        if (!horseVisible && arStarted) {
           horseEntity.setAttribute('visible', 'true');
           horseVisible = true;
           
           // Ocultar la guía de alineación
           alignmentGuide.style.opacity = '0';
           
-          // Ocultar el botón y el marcador visual
+          // Ocultar el botón
           showHorseBtn.style.opacity = '0';
-          markerHint.style.display = 'none';
           
           // Quitar el bloqueador de toques
           touchBlocker.style.display = 'none';
@@ -362,35 +327,19 @@
               successMsg.parentNode.removeChild(successMsg);
             }
           }, 3000);
-        } else if (arStarted && !markerDetected) {
-          // Si no se ha detectado el marcador, mostrar mensaje
-          const alertMsg = document.createElement('div');
-          alertMsg.className = 'success-message';
-          alertMsg.style.background = 'rgba(255, 165, 0, 0.9)';
-          alertMsg.innerHTML = '⚠️ Busca una superficie plana para colocar el caballo';
-          document.body.appendChild(alertMsg);
-          
-          setTimeout(() => {
-            if (alertMsg.parentNode) {
-              alertMsg.parentNode.removeChild(alertMsg);
-            }
-          }, 3000);
         }
       });
 
-      // Detectar cuando el marcador es visible
+      // Prevenir que el modelo se mueva con gestos táctiles
       scene.addEventListener('loaded', function() {
-        horseMarker.addEventListener('markerFound', function() {
-          markerDetected = true;
-          markerHint.style.borderColor = '#4CAF50';
-          markerHint.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
-        });
+        // Deshabilitar rotación y movimiento del modelo
+        const camera = document.querySelector('a-camera');
+        if (camera) {
+          camera.setAttribute('cursor', 'fuse: false');
+        }
         
-        horseMarker.addEventListener('markerLost', function() {
-          markerDetected = false;
-          markerHint.style.borderColor = '#ff6b6b';
-          markerHint.style.backgroundColor = 'rgba(255, 107, 107, 0.2)';
-        });
+        // Asegurarse de que el modelo esté oculto al cargar
+        horseEntity.setAttribute('visible', 'false');
       });
       
       // Prevenir el comportamiento por defecto de desplazamiento
