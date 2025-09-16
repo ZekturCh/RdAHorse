@@ -21,6 +21,9 @@
       color: white;
       overflow: hidden;
       height: 100vh;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
     }
     
     .preloader {
@@ -181,6 +184,38 @@
       80% { opacity: 1; transform: translateX(-50%) translateY(0); }
       100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
     }
+    
+    /* Prevenir acciones táctiles no deseadas */
+    .prevent-touch {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+    }
+    
+    /* Marcador visual para ayudar al usuario */
+    .marker-hint {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border: 3px dashed #4CAF50;
+      border-radius: 10px;
+      display: none;
+      z-index: 15;
+      pointer-events: none;
+      animation: pulseHint 2s infinite;
+    }
+    
+    @keyframes pulseHint {
+      0% { opacity: 0.3; }
+      50% { opacity: 0.8; }
+      100% { opacity: 0.3; }
+    }
   </style>
 </head>
 <body>
@@ -204,7 +239,13 @@
   </div>
 
   <!-- Botón para mostrar el caballo -->
-  <button id="show-horse-btn">Mostrar Caballo</button>
+  <button id="show-horse-btn">Colocar Caballo</button>
+
+  <!-- Marcador visual -->
+  <div class="marker-hint" id="marker-hint"></div>
+
+  <!-- Capa para prevenir interacciones no deseadas -->
+  <div class="prevent-touch" id="touch-blocker" style="display: none;"></div>
 
   <!-- Contenedor de la escena AR -->
   <div id="scene-container">
@@ -212,25 +253,29 @@
       vr-mode-ui="enabled: false"
       loading-screen="enabled: false"
       embedded
-      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
+      arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
+      renderer="logarithmicDepthBuffer: true; precision: medium;"
+      cursor="rayOrigin: mouse">
       
       <a-assets>
         <a-asset-item id="horse-model" src="HorseRA.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Caballo fijo en el mundo AR (inicialmente oculto) -->
-      <a-entity 
-        id="horse-entity" 
-        gltf-model="#horse-model" 
-        position="-0.5 -1 -4" 
-        scale="1 1 1" 
-        rotation="0 0 0"
-        visible="false"
-        animation-mixer="loop: repeat">
-      </a-entity>
+      <!-- Marcador para anclar el modelo al mundo real -->
+      <a-marker id="horse-marker" type="pattern" preset="custom" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/patt.kanji" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+        <a-entity 
+          id="horse-entity" 
+          gltf-model="#horse-model" 
+          position="0 -0.5 0" 
+          scale="0.8 0.8 0.8" 
+          rotation="0 180 0"
+          visible="true"
+          animation-mixer="loop: repeat">
+        </a-entity>
+      </a-marker>
 
-      <!-- Cámara "normal" AR.js -->
-      <a-camera position="0 0 0"></a-camera>
+      <!-- Cámara -->
+      <a-entity camera></a-entity>
       
     </a-scene>
   </div>
@@ -243,10 +288,30 @@
       const showHorseBtn = document.getElementById('show-horse-btn');
       const sceneContainer = document.getElementById('scene-container');
       const startArBtn = document.getElementById('start-ar-btn');
+      const touchBlocker = document.getElementById('touch-blocker');
+      const markerHint = document.getElementById('marker-hint');
       
       let horseVisible = false;
       let arStarted = false;
+      let markerDetected = false;
 
+      // Precargar el modelo antes de iniciar
+      const scene = document.querySelector('a-scene');
+      
+      // Prevenir que el modelo se cargue automáticamente
+      const horseEntity = document.getElementById('horse-entity');
+      const horseMarker = document.getElementById('horse-marker');
+      
+      // Inicialmente ocultar el modelo
+      horseEntity.setAttribute('visible', 'false');
+      
+      // Deshabilitar interacciones por defecto
+      document.addEventListener('touchmove', function(e) {
+        if (!horseVisible) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
       // Simular precarga
       setTimeout(() => {
         preloader.style.display = 'none';
@@ -259,28 +324,31 @@
         sceneContainer.style.opacity = '1';
         alignmentGuide.style.display = 'flex';
         showHorseBtn.style.display = 'block';
+        markerHint.style.display = 'block';
+        touchBlocker.style.display = 'block';
         arStarted = true;
         
-        // Forzar el inicio de AR
-        const scene = document.querySelector('a-scene');
-        if (scene.hasLoaded) {
-          // Ya está cargado, no necesitamos hacer nada más
-        } else {
-          scene.addEventListener('loaded', function() {
-            // Escena AR cargada y lista
-          });
-        }
+        // Asegurarse de que el modelo esté oculto al iniciar
+        horseEntity.setAttribute('visible', 'false');
+        horseVisible = false;
+        markerDetected = false;
       });
 
-      // Mostrar el caballo
+      // Mostrar el caballo cuando se detecte el marcador
       showHorseBtn.addEventListener('click', function() {
-        if (!horseVisible && arStarted) {
-          const horseEntity = document.getElementById('horse-entity');
+        if (arStarted && markerDetected) {
           horseEntity.setAttribute('visible', 'true');
           horseVisible = true;
           
           // Ocultar la guía de alineación
           alignmentGuide.style.opacity = '0';
+          
+          // Ocultar el botón y el marcador visual
+          showHorseBtn.style.opacity = '0';
+          markerHint.style.display = 'none';
+          
+          // Quitar el bloqueador de toques
+          touchBlocker.style.display = 'none';
           
           // Mostrar mensaje de éxito
           const successMsg = document.createElement('div');
@@ -288,27 +356,55 @@
           successMsg.innerHTML = '✅ Caballo posicionado en tu espacio';
           document.body.appendChild(successMsg);
           
-          // Ocultar el botón después de un tiempo
-          setTimeout(() => {
-            showHorseBtn.style.opacity = '0';
-          }, 2000);
-          
           // Remover mensaje después de 3 segundos
           setTimeout(() => {
             if (successMsg.parentNode) {
               successMsg.parentNode.removeChild(successMsg);
             }
           }, 3000);
+        } else if (arStarted && !markerDetected) {
+          // Si no se ha detectado el marcador, mostrar mensaje
+          const alertMsg = document.createElement('div');
+          alertMsg.className = 'success-message';
+          alertMsg.style.background = 'rgba(255, 165, 0, 0.9)';
+          alertMsg.innerHTML = '⚠️ Busca una superficie plana para colocar el caballo';
+          document.body.appendChild(alertMsg);
+          
+          setTimeout(() => {
+            if (alertMsg.parentNode) {
+              alertMsg.parentNode.removeChild(alertMsg);
+            }
+          }, 3000);
         }
       });
 
-      // También manejar toques en la pantalla para mostrar el caballo
-      document.addEventListener('touchstart', function(event) {
-        if (!horseVisible && arStarted) {
-          event.preventDefault();
-          showHorseBtn.click();
-        }
+      // Detectar cuando el marcador es visible
+      scene.addEventListener('loaded', function() {
+        horseMarker.addEventListener('markerFound', function() {
+          markerDetected = true;
+          markerHint.style.borderColor = '#4CAF50';
+          markerHint.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+        });
+        
+        horseMarker.addEventListener('markerLost', function() {
+          markerDetected = false;
+          markerHint.style.borderColor = '#ff6b6b';
+          markerHint.style.backgroundColor = 'rgba(255, 107, 107, 0.2)';
+        });
       });
+      
+      // Prevenir el comportamiento por defecto de desplazamiento
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
+      document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
     });
   </script>
 </body>
