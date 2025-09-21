@@ -194,6 +194,9 @@
       height: 100%;
       z-index: 5;
     }
+  .no-interaction {
+    pointer-events: none !important;
+  }
   </style>
 </head>
 <body>
@@ -229,6 +232,7 @@
       loading-screen="enabled: false"
       embedded
       arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
+      gesture-detector="enabled: false"
       cursor="rayOrigin: mouse">
       
       <a-assets>
@@ -271,7 +275,7 @@
       
       // Prevenir que el modelo se cargue automáticamente
       const horseEntity = document.getElementById('horse-entity');
-      horseEntity.setAttribute('visible', 'false');
+      horseEntity.setAttribute('visible', 'false', 'class', 'no-interaction');
       
       // Deshabilitar interacciones por defecto
       document.addEventListener('touchmove', function(e) {
