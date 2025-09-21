@@ -194,6 +194,75 @@
       height: 100%;
       z-index: 5;
     }
+    
+    /* ===== INICIO: CONTROLES DE POSICIÓN (ELIMINAR DESPUÉS DE CONFIGURAR) ===== */
+    .position-controls {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 10px;
+      z-index: 100;
+      width: 250px;
+      backdrop-filter: blur(5px);
+    }
+    
+    .control-group {
+      margin-bottom: 15px;
+    }
+    
+    .control-label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      color: #4CAF50;
+    }
+    
+    .slider-container {
+      display: flex;
+      align-items: center;
+    }
+    
+    .slider {
+      flex: 1;
+      height: 5px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #ddd;
+      outline: none;
+      border-radius: 5px;
+    }
+    
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4CAF50;
+      cursor: pointer;
+    }
+    
+    .value-display {
+      width: 40px;
+      text-align: center;
+      margin-left: 10px;
+      font-size: 14px;
+    }
+    
+    .copy-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      font-size: 12px;
+    }
+    /* ===== FIN: CONTROLES DE POSICIÓN ===== */
   </style>
 </head>
 <body>
@@ -219,6 +288,38 @@
   <!-- Botón para mostrar el caballo -->
   <button id="show-horse-btn">Mostrar Caballo</button>
 
+  <!-- ===== INICIO: CONTROLES DE POSICIÓN (ELIMINAR DESPUÉS DE CONFIGURAR) ===== -->
+  <div class="position-controls" id="position-controls">
+    <h3 style="margin-top: 0; margin-bottom: 15px; text-align: center; color: #4CAF50;">Ajustar Posición</h3>
+    
+    <div class="control-group">
+      <label class="control-label">Posición X (Izquierda/Derecha)</label>
+      <div class="slider-container">
+        <input type="range" min="-5" max="5" step="0.1" value="0" class="slider" id="pos-x-slider">
+        <span class="value-display" id="pos-x-value">0</span>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <label class="control-label">Posición Y (Arriba/Abajo)</label>
+      <div class="slider-container">
+        <input type="range" min="-5" max="5" step="0.1" value="0" class="slider" id="pos-y-slider">
+        <span class="value-display" id="pos-y-value">0</span>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <label class="control-label">Posición Z (Cerca/Lejos)</label>
+      <div class="slider-container">
+        <input type="range" min="-10" max="0" step="0.1" value="-4" class="slider" id="pos-z-slider">
+        <span class="value-display" id="pos-z-value">-4</span>
+      </div>
+    </div>
+    
+    <button class="copy-btn" id="copy-position-btn">Copiar posición actual</button>
+  </div>
+  <!-- ===== FIN: CONTROLES DE POSICIÓN ===== -->
+
   <!-- Capa para prevenir interacciones no deseadas -->
   <div class="prevent-touch" id="touch-blocker" style="display: none;"></div>
 
@@ -239,7 +340,7 @@
       <a-entity 
         id="horse-entity" 
         gltf-model="#horse-model" 
-        position="-0.5 -1.7 -4" 
+        position="0 0 -4"  <!-- Posición inicial: X=0, Y=0, Z=-4 -->
         scale="1 1 1" 
         rotation="0 90 0"
         visible="false"
@@ -266,6 +367,17 @@
       let horseVisible = false;
       let arStarted = false;
 
+      // ===== INICIO: VARIABLES PARA CONTROLES DE POSICIÓN =====
+      const posXSlider = document.getElementById('pos-x-slider');
+      const posYSlider = document.getElementById('pos-y-slider');
+      const posZSlider = document.getElementById('pos-z-slider');
+      const posXValue = document.getElementById('pos-x-value');
+      const posYValue = document.getElementById('pos-y-value');
+      const posZValue = document.getElementById('pos-z-value');
+      const copyPositionBtn = document.getElementById('copy-position-btn');
+      const positionControls = document.getElementById('position-controls');
+      // ===== FIN: VARIABLES PARA CONTROLES DE POSICIÓN =====
+      
       // Precargar el modelo antes de iniciar
       const scene = document.querySelector('a-scene');
       
@@ -285,6 +397,45 @@
         preloader.style.display = 'none';
         initialInstruction.style.display = 'block';
       }, 2000);
+
+      // ===== INICIO: CONFIGURACIÓN DE CONTROLES DE POSICIÓN =====
+      // Función para actualizar la posición del modelo
+      function updateModelPosition() {
+        const x = parseFloat(posXSlider.value);
+        const y = parseFloat(posYSlider.value);
+        const z = parseFloat(posZSlider.value);
+        
+        horseEntity.setAttribute('position', {x: x, y: y, z: z});
+        
+        // Actualizar displays de valores
+        posXValue.textContent = x.toFixed(1);
+        posYValue.textContent = y.toFixed(1);
+        posZValue.textContent = z.toFixed(1);
+      }
+      
+      // Configurar event listeners para los sliders
+      posXSlider.addEventListener('input', updateModelPosition);
+      posYSlider.addEventListener('input', updateModelPosition);
+      posZSlider.addEventListener('input', updateModelPosition);
+      
+      // Configurar botón para copiar posición
+      copyPositionBtn.addEventListener('click', function() {
+        const x = parseFloat(posXSlider.value);
+        const y = parseFloat(posYSlider.value);
+        const z = parseFloat(posZSlider.value);
+        
+        const positionCode = `position="${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(1)}"`;
+        navigator.clipboard.writeText(positionCode).then(() => {
+          copyPositionBtn.textContent = '¡Copiado!';
+          setTimeout(() => {
+            copyPositionBtn.textContent = 'Copiar posición actual';
+          }, 2000);
+        });
+      });
+      
+      // Inicializar posición
+      updateModelPosition();
+      // ===== FIN: CONFIGURACIÓN DE CONTROLES DE POSICIÓN =====
 
       // Iniciar experiencia AR
       startArBtn.addEventListener('click', function() {
@@ -311,6 +462,10 @@
           
           // Ocultar el botón
           showHorseBtn.style.opacity = '0';
+          
+          // ===== INICIO: OCULTAR CONTROLES AL MOSTRAR EL MODELO =====
+          positionControls.style.display = 'none';
+          // ===== FIN: OCULTAR CONTROLES AL MOSTRAR EL MODELO =====
           
           // Quitar el bloqueador de toques
           touchBlocker.style.display = 'none';
