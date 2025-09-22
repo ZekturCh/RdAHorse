@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
+  <!-- Meta específica para iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>AR - Caballo 3D</title>
   <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
@@ -44,6 +47,8 @@
       color: white;
       font-size: 1.2rem;
       margin-top: 20px;
+      text-align: center;
+      padding: 0 20px;
     }
     
     .spinner {
@@ -89,6 +94,7 @@
       text-align: center;
       font-size: 1rem;
       text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      padding: 0 20px;
     }
     
     #show-horse-btn {
@@ -194,9 +200,37 @@
       height: 100%;
       z-index: 5;
     }
-  .no-interaction {
-    pointer-events: none !important;
-  }
+    
+    .no-interaction {
+      pointer-events: none !important;
+    }
+    
+    /* Mensaje específico para iOS */
+    .ios-permission-help {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      z-index: 40;
+    }
+    
+    .ios-permission-help ul {
+      text-align: left;
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    
+    .ios-permission-help li {
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -211,6 +245,18 @@
     <h2>🐎 Caballo AR</h2>
     <p>Vive la experiencia de tener un caballo animado en tu espacio mediante realidad aumentada.</p>
     <button id="start-ar-btn">Comenzar Experiencia</button>
+  </div>
+
+  <!-- Ayuda para permisos de iOS -->
+  <div class="ios-permission-help" id="ios-help">
+    <h3>Permiso de cámara requerido</h3>
+    <p>Para usar la realidad aumentada, necesitas permitir el acceso a la cámara:</p>
+    <ul>
+      <li>Haz clic en "Permitir" cuando Safari lo solicite</li>
+      <li>Si accidentalmente hiciste clic en "Denegar", actualiza la página e intenta de nuevo</li>
+      <li>Asegúrate de que Safari tenga permisos de cámara en Configuración > Safari</li>
+    </ul>
+    <button id="close-ios-help">Entendido</button>
   </div>
 
   <!-- Guía de alineación -->
@@ -266,9 +312,12 @@
       const sceneContainer = document.getElementById('scene-container');
       const startArBtn = document.getElementById('start-ar-btn');
       const touchBlocker = document.getElementById('touch-blocker');
+      const iosHelp = document.getElementById('ios-help');
+      const closeIosHelp = document.getElementById('close-ios-help');
       
       let horseVisible = false;
       let arStarted = false;
+      let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
       // Precargar el modelo antes de iniciar
       const scene = document.querySelector('a-scene');
@@ -288,11 +337,34 @@
       setTimeout(() => {
         preloader.style.display = 'none';
         initialInstruction.style.display = 'block';
+        
+        // Mostrar ayuda para iOS inmediatamente
+        if (isIOS) {
+          setTimeout(() => {
+            iosHelp.style.display = 'block';
+          }, 500);
+        }
       }, 2000);
+
+      // Cerrar ayuda de iOS
+      closeIosHelp.addEventListener('click', function() {
+        iosHelp.style.display = 'none';
+      });
 
       // Iniciar experiencia AR
       startArBtn.addEventListener('click', function() {
         initialInstruction.style.display = 'none';
+        iosHelp.style.display = 'none';
+        
+        // Para iOS, usar getUserMedia primero para manejar mejor los permisos
+        if (isIOS) {
+          initIOSCamera();
+        } else {
+          startARExperience();
+        }
+      });
+
+      function startARExperience() {
         sceneContainer.style.opacity = '1';
         alignmentGuide.style.display = 'flex';
         showHorseBtn.style.display = 'block';
@@ -302,7 +374,36 @@
         // Asegurarse de que el modelo esté oculto al iniciar
         horseEntity.setAttribute('visible', 'false');
         horseVisible = false;
-      });
+      }
+
+      // Función especial para manejar la cámara en iOS
+      function initIOSCamera() {
+        // Primero solicitar permisos de cámara directamente
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+              // Permiso concedido, iniciar AR
+              startARExperience();
+              
+              // Detener el stream ya que A-Frame lo manejará por su cuenta
+              stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(function(error) {
+              // Permiso denegado o error
+              console.error('Error al acceder a la cámara:', error);
+              alert('Para usar la realidad aumentada, necesitas permitir el acceso a la cámara. Por favor, actualiza la página e intenta de nuevo.');
+              
+              // Volver a mostrar las instrucciones iniciales
+              initialInstruction.style.display = 'block';
+              if (isIOS) {
+                iosHelp.style.display = 'block';
+              }
+            });
+        } else {
+          // Navegador no compatible, intentar iniciar de todos modos
+          startARExperience();
+        }
+      }
 
       // Mostrar el caballo
       showHorseBtn.addEventListener('click', function() {
@@ -361,4 +462,4 @@
     });
   </script>
 </body>
-</html> 
+</html>
