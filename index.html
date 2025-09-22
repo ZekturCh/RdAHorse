@@ -231,6 +231,28 @@
     .ios-permission-help li {
       margin-bottom: 8px;
     }
+    
+    /* Indicador de carga de cámara */
+    .camera-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 35;
+    }
+    
+    .camera-loading-text {
+      color: white;
+      margin-top: 20px;
+      font-size: 1.1rem;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -238,6 +260,12 @@
   <div class="preloader">
     <div class="spinner"></div>
     <div class="preloader-text">Cargando experiencia AR...</div>
+  </div>
+
+  <!-- Indicador de carga de cámara -->
+  <div class="camera-loading" id="camera-loading" style="display: none;">
+    <div class="spinner"></div>
+    <div class="camera-loading-text">Iniciando cámara...</div>
   </div>
 
   <!-- Panel de instrucciones inicial -->
@@ -279,26 +307,33 @@
       embedded
       arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
       gesture-detector="enabled: false"
-      cursor="rayOrigin: mouse">
+      cursor="rayOrigin: mouse"
+      id="ar-scene">
       
       <a-assets>
-        <a-asset-item id="horse-model" src="horseRA2.glb"></a-asset-item>
+        <!-- Modelo de caballo de ejemplo (reemplaza con tu modelo real) -->
+        <a-asset-item id="horse-model" src="https://cdn.glitch.global/5e54f704-5fe0-4c62-89b4-60c68d3d6567/horse.glb?v=1647282360083"></a-asset-item>
       </a-assets>
 
-      <!-- Caballo fijo en el mundo AR (inicialmente oculto) -->
-      <a-entity 
-        id="horse-entity" 
-        gltf-model="#horse-model" 
-        position="-1 -1.5 -8" 
-        scale="1 1 1" 
-        rotation="0 90 0"
-        visible="false"
-        static-body
-        animation-mixer="loop: repeat">
+      <!-- Marcador AR (si estás usando marcadores) -->
+      <!-- <a-marker type="pattern" preset="hiro"> -->
+      <!-- Marcador prescindible para AR sin marcador -->
+      <a-entity id="marker" visible="false">
+        <!-- Caballo en el mundo AR (inicialmente oculto) -->
+        <a-entity 
+          id="horse-entity" 
+          gltf-model="#horse-model" 
+          position="0 0 0" 
+          scale="0.5 0.5 0.5" 
+          rotation="0 180 0"
+          visible="false"
+          animation-mixer="loop: repeat">
+        </a-entity>
       </a-entity>
+      <!-- </a-marker> -->
 
-      <!-- Cámara "normal" AR.js -->
-      <a-camera position="0 0 0" cursor="fuse: false"></a-camera>
+      <!-- Cámara AR -->
+      <a-entity id="ar-camera" camera></a-entity>
       
     </a-scene>
   </div>
@@ -314,17 +349,16 @@
       const touchBlocker = document.getElementById('touch-blocker');
       const iosHelp = document.getElementById('ios-help');
       const closeIosHelp = document.getElementById('close-ios-help');
+      const cameraLoading = document.getElementById('camera-loading');
+      const arScene = document.getElementById('ar-scene');
       
       let horseVisible = false;
       let arStarted = false;
       let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      let cameraAccessGranted = false;
 
       // Precargar el modelo antes de iniciar
-      const scene = document.querySelector('a-scene');
-      
-      // Prevenir que el modelo se cargue automáticamente
       const horseEntity = document.getElementById('horse-entity');
-      horseEntity.setAttribute('visible', 'false', 'class', 'no-interaction');
       
       // Deshabilitar interacciones por defecto
       document.addEventListener('touchmove', function(e) {
@@ -355,6 +389,7 @@
       startArBtn.addEventListener('click', function() {
         initialInstruction.style.display = 'none';
         iosHelp.style.display = 'none';
+        cameraLoading.style.display = 'flex';
         
         // Para iOS, usar getUserMedia primero para manejar mejor los permisos
         if (isIOS) {
@@ -365,15 +400,46 @@
       });
 
       function startARExperience() {
+        // Esperar a que la escena esté cargada antes de mostrar
+        if (arScene.hasLoaded) {
+          showARScene();
+        } else {
+          arScene.addEventListener('loaded', showARScene);
+        }
+      }
+
+      function showARScene() {
         sceneContainer.style.opacity = '1';
         alignmentGuide.style.display = 'flex';
         showHorseBtn.style.display = 'block';
-        touchBlocker.style.display = 'block'; // Bloquear interacciones
+        touchBlocker.style.display = 'block';
+        cameraLoading.style.display = 'none';
         arStarted = true;
         
         // Asegurarse de que el modelo esté oculto al iniciar
         horseEntity.setAttribute('visible', 'false');
         horseVisible = false;
+        
+        // Forzar el reinicio de la cámara en iOS si es necesario
+        if (isIOS && cameraAccessGranted) {
+          setTimeout(() => {
+            const cameraSystem = arScene.systems['arjs'];
+            if (cameraSystem && cameraSystem._arSource) {
+              try {
+                cameraSystem._arSource.stop();
+                cameraSystem._arSource.init().then(() => {
+                  console.log('Cámara reiniciada correctamente');
+                  cameraSystem._arSource.copySizeTo(arScene.renderer.domElement);
+                  cameraSystem._arSource.onResize();
+                }).catch(error => {
+                  console.error('Error al reiniciar la cámara:', error);
+                });
+              } catch (error) {
+                console.error('Error al acceder a la cámara:', error);
+              }
+            }
+          }, 500);
+        }
       }
 
       // Función especial para manejar la cámara en iOS
@@ -382,15 +448,21 @@
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
-              // Permiso concedido, iniciar AR
-              startARExperience();
+              // Permiso concedido
+              cameraAccessGranted = true;
               
               // Detener el stream ya que A-Frame lo manejará por su cuenta
               stream.getTracks().forEach(track => track.stop());
+              
+              // Iniciar AR
+              startARExperience();
             })
             .catch(function(error) {
               // Permiso denegado o error
               console.error('Error al acceder a la cámara:', error);
+              cameraLoading.style.display = 'none';
+              
+              // Mostrar mensaje de error
               alert('Para usar la realidad aumentada, necesitas permitir el acceso a la cámara. Por favor, actualiza la página e intenta de nuevo.');
               
               // Volver a mostrar las instrucciones iniciales
@@ -435,18 +507,18 @@
         }
       });
 
-      // Prevenir que el modelo se mueva con gestos táctiles
-      scene.addEventListener('loaded', function() {
-        // Deshabilitar rotación y movimiento del modelo
-        const camera = document.querySelector('a-camera');
-        if (camera) {
-          camera.setAttribute('cursor', 'fuse: false');
-        }
+      // Manejar eventos de la cámara
+      arScene.addEventListener('camera-error', function(evt) {
+        console.error('Error de cámara:', evt.detail.error);
+        cameraLoading.querySelector('.camera-loading-text').textContent = 
+          'Error al acceder a la cámara. Por favor, recarga la página.';
         
-        // Asegurarse de que el modelo esté oculto al cargar
-        horseEntity.setAttribute('visible', 'false');
+        setTimeout(() => {
+          cameraLoading.style.display = 'none';
+          initialInstruction.style.display = 'block';
+        }, 3000);
       });
-      
+
       // Prevenir el comportamiento por defecto de desplazamiento
       document.addEventListener('touchstart', function(e) {
         if (e.touches.length > 1) {
