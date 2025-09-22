@@ -1,41 +1,231 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="mobile-web-app-capable" content="yes" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>AR - Caballo 3D</title>
   <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
   <style>
-    /* Igual que tu código original */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #000;
+      color: white;
+      overflow: hidden;
+      height: 100vh;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    .preloader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .preloader-text {
+      color: white;
+      font-size: 1.2rem;
+      margin-top: 20px;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #4CAF50;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    #alignment-guide {
+      position: fixed;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 120px;
+      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 20px;
+      z-index: 10;
+      transition: opacity 0.5s;
+    }
+    
+    .guide-line {
+      width: 80%;
+      height: 4px;
+      background-color: #4CAF50;
+      margin-bottom: 10px;
+      border-radius: 2px;
+      box-shadow: 0 0 10px rgba(76, 175, 80, 0.7);
+    }
+    
+    .guide-text {
+      color: white;
+      text-align: center;
+      font-size: 1rem;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    
+    #show-horse-btn {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.2rem;
+      border-radius: 30px;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: all 0.3s;
+      display: none;
+    }
+    
+    #show-horse-btn:hover {
+      background: #45a049;
+      transform: translateX(-50%) scale(1.05);
+    }
+    
+    #scene-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1s;
+    }
+    
+    .instruction-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      z-index: 30;
+      backdrop-filter: blur(10px);
+      max-width: 90%;
+      width: 350px;
+    }
+    
+    .instruction-panel h2 {
+      margin-bottom: 15px;
+      color: #4CAF50;
+    }
+    
+    .instruction-panel p {
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    
+    #start-ar-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    #start-ar-btn:hover {
+      background: #45a049;
+      transform: scale(1.05);
+    }
+    
+    .success-message {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 150, 0, 0.9);
+      padding: 15px 25px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 25;
+      animation: fadeInOut 3s ease-in-out;
+    }
+    
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    }
+    
+    /* Prevenir acciones táctiles no deseadas */
+    .prevent-touch {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+    }
+  .no-interaction {
+    pointer-events: none !important;
+  }
   </style>
 </head>
 <body>
+  <!-- Precargador -->
   <div class="preloader">
     <div class="spinner"></div>
     <div class="preloader-text">Cargando experiencia AR...</div>
   </div>
 
+  <!-- Panel de instrucciones inicial -->
   <div class="instruction-panel" id="initial-instruction">
     <h2>🐎 Caballo AR</h2>
     <p>Vive la experiencia de tener un caballo animado en tu espacio mediante realidad aumentada.</p>
     <button id="start-ar-btn">Comenzar Experiencia</button>
-    <p id="perm-error" style="color: #f44336; display: none; margin-top: 15px;">
-      No se pudo acceder a la cámara. Por favor, acepta el permiso para continuar.
-    </p>
   </div>
 
+  <!-- Guía de alineación -->
   <div id="alignment-guide">
     <div class="guide-line"></div>
     <div class="guide-text">Posiciona el celular para que la vista del piso se alinee con esta línea</div>
   </div>
 
+  <!-- Botón para mostrar el caballo -->
   <button id="show-horse-btn">Mostrar Caballo</button>
 
+  <!-- Capa para prevenir interacciones no deseadas -->
   <div class="prevent-touch" id="touch-blocker" style="display: none;"></div>
 
+  <!-- Contenedor de la escena AR -->
   <div id="scene-container">
     <a-scene
       vr-mode-ui="enabled: false"
@@ -43,93 +233,99 @@
       embedded
       arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
       gesture-detector="enabled: false"
-      cursor="rayOrigin: mouse"
-    >
+      cursor="rayOrigin: mouse">
+      
       <a-assets>
         <a-asset-item id="horse-model" src="horseRA2.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity
-        id="horse-entity"
-        gltf-model="#horse-model"
-        position="-1 -1.5 -8"
-        scale="1 1 1"
+      <!-- Caballo fijo en el mundo AR (inicialmente oculto) -->
+      <a-entity 
+        id="horse-entity" 
+        gltf-model="#horse-model" 
+        position="-1 -1.5 -8" 
+        scale="1 1 1" 
         rotation="0 90 0"
         visible="false"
         static-body
-        animation-mixer="loop: repeat"
-      ></a-entity>
+        animation-mixer="loop: repeat">
+      </a-entity>
 
+      <!-- Cámara "normal" AR.js -->
       <a-camera position="0 0 0" cursor="fuse: false"></a-camera>
+      
     </a-scene>
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const preloader = document.querySelector(".preloader");
-      const initialInstruction = document.getElementById("initial-instruction");
-      const alignmentGuide = document.getElementById("alignment-guide");
-      const showHorseBtn = document.getElementById("show-horse-btn");
-      const sceneContainer = document.getElementById("scene-container");
-      const startArBtn = document.getElementById("start-ar-btn");
-      const touchBlocker = document.getElementById("touch-blocker");
-      const permError = document.getElementById("perm-error");
+    document.addEventListener('DOMContentLoaded', function() {
+      const preloader = document.querySelector('.preloader');
+      const initialInstruction = document.getElementById('initial-instruction');
+      const alignmentGuide = document.getElementById('alignment-guide');
+      const showHorseBtn = document.getElementById('show-horse-btn');
+      const sceneContainer = document.getElementById('scene-container');
+      const startArBtn = document.getElementById('start-ar-btn');
+      const touchBlocker = document.getElementById('touch-blocker');
+      
       let horseVisible = false;
       let arStarted = false;
 
-      const horseEntity = document.getElementById("horse-entity");
-      horseEntity.setAttribute("visible", "false");
-
+      // Precargar el modelo antes de iniciar
+      const scene = document.querySelector('a-scene');
+      
+      // Prevenir que el modelo se cargue automáticamente
+      const horseEntity = document.getElementById('horse-entity');
+      horseEntity.setAttribute('visible', 'false', 'class', 'no-interaction');
+      
+      // Deshabilitar interacciones por defecto
+      document.addEventListener('touchmove', function(e) {
+        if (!horseVisible) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
       // Simular precarga
       setTimeout(() => {
-        preloader.style.display = "none";
-        initialInstruction.style.display = "block";
+        preloader.style.display = 'none';
+        initialInstruction.style.display = 'block';
       }, 2000);
 
-      // Función para solicitar permiso cámara explícitamente
-      async function requestCameraPermission() {
-        try {
-          // Solicitar permiso accediendo a getUserMedia sin usar flujo
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          // Si se concede permiso, detener el stream inmediatamente (no usar)
-          stream.getTracks().forEach((track) => track.stop());
-          return true;
-        } catch (err) {
-          return false;
-        }
-      }
-
-      startArBtn.addEventListener("click", async function () {
-        permError.style.display = "none";
-        const granted = await requestCameraPermission();
-        if (granted) {
-          // Ocultar panel e iniciar experiencia AR solo si permiso permitido
-          initialInstruction.style.display = "none";
-          sceneContainer.style.opacity = "1";
-          alignmentGuide.style.display = "flex";
-          showHorseBtn.style.display = "block";
-          touchBlocker.style.display = "block"; // Bloquear interacciones
-          arStarted = true;
-          horseEntity.setAttribute("visible", "false");
-          horseVisible = false;
-        } else {
-          // Mostrar error si permiso fue denegado
-          permError.style.display = "block";
-        }
+      // Iniciar experiencia AR
+      startArBtn.addEventListener('click', function() {
+        initialInstruction.style.display = 'none';
+        sceneContainer.style.opacity = '1';
+        alignmentGuide.style.display = 'flex';
+        showHorseBtn.style.display = 'block';
+        touchBlocker.style.display = 'block'; // Bloquear interacciones
+        arStarted = true;
+        
+        // Asegurarse de que el modelo esté oculto al iniciar
+        horseEntity.setAttribute('visible', 'false');
+        horseVisible = false;
       });
 
-      showHorseBtn.addEventListener("click", function () {
+      // Mostrar el caballo
+      showHorseBtn.addEventListener('click', function() {
         if (!horseVisible && arStarted) {
-          horseEntity.setAttribute("visible", "true");
+          horseEntity.setAttribute('visible', 'true');
           horseVisible = true;
-          alignmentGuide.style.opacity = "0";
-          showHorseBtn.style.opacity = "0";
-          touchBlocker.style.display = "none";
-
-          const successMsg = document.createElement("div");
-          successMsg.className = "success-message";
-          successMsg.innerHTML = "✅ Caballo posicionado en tu espacio";
+          
+          // Ocultar la guía de alineación
+          alignmentGuide.style.opacity = '0';
+          
+          // Ocultar el botón
+          showHorseBtn.style.opacity = '0';
+          
+          // Quitar el bloqueador de toques
+          touchBlocker.style.display = 'none';
+          
+          // Mostrar mensaje de éxito
+          const successMsg = document.createElement('div');
+          successMsg.className = 'success-message';
+          successMsg.innerHTML = '✅ Caballo posicionado en tu espacio';
           document.body.appendChild(successMsg);
+          
+          // Remover mensaje después de 3 segundos
           setTimeout(() => {
             if (successMsg.parentNode) {
               successMsg.parentNode.removeChild(successMsg);
@@ -138,38 +334,31 @@
         }
       });
 
-      const scene = document.querySelector("a-scene");
-      scene.addEventListener("loaded", function () {
-        const camera = document.querySelector("a-camera");
+      // Prevenir que el modelo se mueva con gestos táctiles
+      scene.addEventListener('loaded', function() {
+        // Deshabilitar rotación y movimiento del modelo
+        const camera = document.querySelector('a-camera');
         if (camera) {
-          camera.setAttribute("cursor", "fuse: false");
+          camera.setAttribute('cursor', 'fuse: false');
         }
-        horseEntity.setAttribute("visible", "false");
+        
+        // Asegurarse de que el modelo esté oculto al cargar
+        horseEntity.setAttribute('visible', 'false');
       });
-
-      document.addEventListener(
-        "touchmove",
-        function (e) {
-          if (!horseVisible) {
-            e.preventDefault();
-          }
-          if (e.touches.length > 1) {
-            e.preventDefault();
-          }
-        },
-        { passive: false }
-      );
-
-      document.addEventListener(
-        "touchstart",
-        function (e) {
-          if (e.touches.length > 1) {
-            e.preventDefault();
-          }
-        },
-        { passive: false }
-      );
+      
+      // Prevenir el comportamiento por defecto de desplazamiento
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
+      document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
     });
   </script>
 </body>
-</html>
+</html> 
