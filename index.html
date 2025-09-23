@@ -12,8 +12,7 @@
     body {
       margin: 0;
       background: #000;
-      color: white;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
       overflow: hidden;
     }
 
@@ -29,15 +28,14 @@
       z-index: 1000;
     }
     .spinner {
-      width: 50px;
-      height: 50px;
+      width: 50px; height: 50px;
       border: 5px solid rgba(255,255,255,0.3);
       border-top-color: #4CAF50;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .preloader-text { margin-top: 15px; font-size: 1.2rem; }
+    .preloader-text { margin-top: 15px; font-size: 1.2rem; color: white; }
 
     /* Panel inicial */
     .instruction-panel {
@@ -51,6 +49,7 @@
       z-index: 20;
       max-width: 90%;
       width: 350px;
+      color: white;
     }
     .instruction-panel h2 { margin-bottom: 10px; color: #4CAF50; }
     #start-ar-btn {
@@ -88,6 +87,7 @@
       border-radius: 2px;
       box-shadow: 0 0 10px rgba(76,175,80,0.7);
     }
+    .guide-text { color: white; text-shadow: 0 1px 3px black; }
 
     /* Botón mostrar caballo */
     #show-horse-btn {
@@ -117,6 +117,7 @@
       border-radius: 10px;
       animation: fadeInOut 3s ease-in-out;
       z-index: 30;
+      color: white;
     }
     @keyframes fadeInOut {
       0% { opacity: 0; transform: translate(-50%, -20px); }
@@ -138,14 +139,14 @@
   <!-- Panel inicial -->
   <div class="instruction-panel" id="initial-instruction" style="display:none;">
     <h2>🐎 Caballo AR</h2>
-    <p>Vive la experiencia de tener un caballo animado en tu espacio mediante realidad aumentada.</p>
+    <p>Primero alinea tu celular con la línea verde para definir el piso.</p>
     <button id="start-ar-btn">Comenzar Experiencia</button>
   </div>
 
   <!-- Guía -->
   <div id="alignment-guide">
     <div class="guide-line"></div>
-    <div class="guide-text">Alinea el celular con el piso</div>
+    <div class="guide-text">Alinea el celular con el piso aquí</div>
   </div>
 
   <!-- Botón mostrar -->
@@ -169,11 +170,11 @@
 
       let horseVisible = false;
 
-      // Iniciar AR solo al pulsar
+      // Iniciar AR al pulsar
       startBtn.addEventListener("click", () => {
         document.getElementById("initial-instruction").style.display = "none";
 
-        // Crear la escena dinámicamente
+        // Crear escena con caballo oculto
         sceneContainer.innerHTML = `
           <a-scene
             embedded
@@ -203,7 +204,7 @@
         showHorseBtn.style.display = "block";
       });
 
-      // Mostrar caballo
+      // Mostrar caballo en el punto definido
       showHorseBtn.addEventListener("click", () => {
         if (!horseVisible) {
           const horse = document.getElementById("horse-entity");
@@ -213,7 +214,7 @@
             alignmentGuide.style.display = "none";
             showHorseBtn.style.display = "none";
 
-            // Mensaje de éxito
+            // Mensaje éxito
             const msg = document.createElement("div");
             msg.className = "success-message";
             msg.textContent = "✅ Caballo posicionado en tu espacio";
