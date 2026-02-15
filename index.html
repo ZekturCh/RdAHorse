@@ -1,118 +1,138 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Contador Persistente</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Contadores Persistentes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+<style>
+* {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #0a0a0a;
-      color: #ffffff;
-    }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0a;
+  color: #ffffff;
+  gap: 40px;
+  flex-wrap: wrap;
+}
 
-    .counter-box {
-      background: #111;
-      padding: 30px 40px;
-      border-radius: 14px;
-      text-align: center;
-      box-shadow: 0 0 40px rgba(0,0,0,0.6);
-    }
+.counter-box {
+  background: #111;
+  padding: 30px 40px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  width: 280px;
+}
 
-    .counter-title {
-      font-size: 14px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      opacity: 0.6;
-      margin-bottom: 10px;
-    }
+.counter-title {
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: 10px;
+}
 
-    .counter-value {
-      font-size: 72px;
-      font-weight: 700;
-      margin: 20px 0;
-    }
+.counter-value {
+  font-size: 60px;
+  font-weight: 700;
+  margin: 20px 0;
+}
 
-    .buttons {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-    }
+.buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
 
-    button {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: none;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: transform 0.1s ease, background 0.2s ease;
-    }
+button {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  border: none;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
 
-    button:active {
-      transform: scale(0.92);
-    }
+button:active {
+  transform: scale(0.9);
+}
 
-    .btn-minus {
-      background: #ff3b3b;
-      color: #fff;
-    }
-
-    .btn-plus {
-      background: #2eff7e;
-      color: #000;
-    }
-  </style>
+.btn-minus { background: #ff3b3b; color: #fff; }
+.btn-plus { background: #2eff7e; color: #000; }
+.btn-reset { background: #555; color: #fff; }
+</style>
 </head>
 <body>
 
-  <div class="counter-box">
-    <div class="counter-title">Contador</div>
-    <div id="counter" class="counter-value">0</div>
-
-    <div class="buttons">
-      <button class="btn-minus" id="decrease">−</button>
-      <button class="btn-plus" id="increase">+</button>
-    </div>
+<!-- CONTADOR 1 -->
+<div class="counter-box">
+  <div class="counter-title">Contador 1</div>
+  <div id="counter1" class="counter-value">0</div>
+  <div class="buttons">
+    <button class="btn-minus" id="decrease1">−</button>
+    <button class="btn-plus" id="increase1">+</button>
+    <button class="btn-reset" id="reset1">↺</button>
   </div>
+</div>
 
-  <script>
-    const counterEl = document.getElementById("counter");
-    const increaseBtn = document.getElementById("increase");
-    const decreaseBtn = document.getElementById("decrease");
+<!-- CONTADOR 2 -->
+<div class="counter-box">
+  <div class="counter-title">Contador 2</div>
+  <div id="counter2" class="counter-value">0</div>
+  <div class="buttons">
+    <button class="btn-minus" id="decrease2">−</button>
+    <button class="btn-plus" id="increase2">+</button>
+    <button class="btn-reset" id="reset2">↺</button>
+  </div>
+</div>
 
-    // Cargar valor guardado o iniciar en 0
-    let count = localStorage.getItem("contadorValor");
-    count = count !== null ? parseInt(count) : 0;
+<script>
+function createCounter(counterId, increaseId, decreaseId, resetId, storageKey) {
+  const counterEl = document.getElementById(counterId);
+  const increaseBtn = document.getElementById(increaseId);
+  const decreaseBtn = document.getElementById(decreaseId);
+  const resetBtn = document.getElementById(resetId);
 
+  let count = localStorage.getItem(storageKey);
+  count = count !== null ? parseInt(count) : 0;
+
+  function update() {
     counterEl.textContent = count;
+    localStorage.setItem(storageKey, count);
+  }
 
-    function updateCounter() {
-      counterEl.textContent = count;
-      localStorage.setItem("contadorValor", count);
-    }
+  increaseBtn.addEventListener("click", () => {
+    count++;
+    update();
+  });
 
-    increaseBtn.addEventListener("click", () => {
-      count++;
-      updateCounter();
-    });
+  decreaseBtn.addEventListener("click", () => {
+    count--;
+    update();
+  });
 
-    decreaseBtn.addEventListener("click", () => {
-      count--;
-      updateCounter();
-    });
-  </script>
+  resetBtn.addEventListener("click", () => {
+    count = 0;
+    update();
+  });
+
+  update();
+}
+
+createCounter("counter1", "increase1", "decrease1", "reset1", "contador1");
+createCounter("counter2", "increase2", "decrease2", "reset2", "contador2");
+</script>
 
 </body>
 </html>
